@@ -1,0 +1,19 @@
+name = "cloudpaste"
+main = "src/index.js"
+compatibility_date = "2024-01-09"
+
+[vars]
+ENVIRONMENT = "development"
+
+[[kv_namespaces]]
+binding = "CLOUDPASTE_KV"
+id = "your-kv-id"
+preview_id = "your-preview-kv-id"
+
+[[r2_buckets]]
+binding = "CLOUDPASTE_BUCKET"
+bucket_name = "cloudpaste"
+preview_bucket_name = "cloudpaste-dev"
+
+[site]
+bucket = "./public"

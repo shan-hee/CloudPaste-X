@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudPaste - 分享内容</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/share.css">
+</head>
+<body>
+    <header class="header">
+        <div class="theme-toggle" id="themeToggle">
+            <i class="fas fa-sun"></i>
+        </div>
+    </header>
+    
+    <div class="content-container">
+        <div class="content-card">
+            <div class="card-header">
+                <div class="left-actions">
+                    <button class="action-btn" id="copyBtn">
+                        <i class="fas fa-copy"></i>
+                        复制内容
+                    </button>
+                    <button class="action-btn" id="editBtn">
+                        <i class="fas fa-edit"></i>
+                        编辑内容
+                    </button>
+                </div>
+                <div class="right-actions">
+                    <select class="format-select" id="formatSelect">
+                        <option value="pdf" selected>PDF格式</option>
+                        <option value="png">PNG格式</option>
+                    </select>
+                    <button class="action-btn" id="downloadBtn">
+                        <i class="fas fa-download"></i>
+                        导出
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card-content">
+                <textarea class="share-content" id="shareContent" readonly></textarea>
+            </div>
+            
+            <div class="info-group">
+                <span class="info-item">
+                    <i class="far fa-clock"></i>
+                    创建时间: <span id="createTime"></span>
+                </span>
+                <span class="info-item">
+                    <i class="far fa-eye"></i>
+                    访问次数: <span id="viewCount">0</span>
+                </span>
+                <span class="info-item">
+                    <i class="fas fa-hourglass-half"></i>
+                    过期时间: <span id="expireTime"></span>
+                </span>
+            </div>
+        </div>
+
+        <!-- KV和R2文件列表 -->
+        <div class="content-card file-list-card">
+            <h3>KV 存储</h3>
+            <div id="kvList" class="file-list">
+                <!-- KV文件列表将通过JavaScript动态添加 -->
+            </div>
+        </div>
+
+        <div class="content-card file-list-card">
+            <h3>R2 存储</h3>
+            <div id="r2List" class="file-list">
+                <!-- R2文件列表将通过JavaScript动态添加 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast提示元素 -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span>内容已复制到剪贴板</span>
+    </div>
+
+    <script src="/share.js"></script>
+</body>
+</html> 

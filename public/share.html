@@ -4,9 +4,102 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CloudPaste - 分享内容</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="/styles.css">
-    <link rel="stylesheet" href="/share.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="share.css">
+    <!-- 使用CDN加载QRCode库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- 内联定义二维码相关函数 -->
+    <script>
+        function toggleQRCode(url) {
+            console.log('生成二维码，URL:', url);
+            
+            let container = document.getElementById('qrcode-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'qrcode-container';
+                container.className = 'qr-code-container';
+                
+                const modal = document.createElement('div');
+                modal.className = 'qr-code-modal';
+                
+                const title = document.createElement('h3');
+                title.textContent = '扫描二维码访问';
+                
+                const qrcodeDiv = document.createElement('div');
+                qrcodeDiv.id = 'qrcode';
+                qrcodeDiv.className = 'qr-code';
+                
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'qr-code-actions';
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.textContent = '下载二维码';
+                downloadBtn.className = 'download-btn';
+                downloadBtn.onclick = () => {
+                    const canvas = qrcodeDiv.querySelector('canvas');
+                    if (canvas) {
+                        const link = document.createElement('a');
+                        link.download = 'qrcode.png';
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    }
+                };
+                
+                const closeBtn = document.createElement('button');
+                closeBtn.textContent = '关闭';
+                closeBtn.className = 'close-btn';
+                closeBtn.onclick = () => container.style.display = 'none';
+                
+                buttonContainer.appendChild(downloadBtn);
+                buttonContainer.appendChild(closeBtn);
+                
+                modal.appendChild(title);
+                modal.appendChild(qrcodeDiv);
+                modal.appendChild(buttonContainer);
+                container.appendChild(modal);
+                document.body.appendChild(container);
+                
+                container.onclick = (e) => {
+                    if (e.target === container) {
+                        container.style.display = 'none';
+                    }
+                };
+            }
+            
+            try {
+                const qrcodeDiv = document.getElementById('qrcode');
+                qrcodeDiv.innerHTML = '';
+                
+                // 创建QRCode实例
+                const qrcode = new QRCode(qrcodeDiv, {
+                    text: url,
+                    width: 200,
+                    height: 200
+                });
+                
+                // 显示容器
+                container.style.display = 'flex';
+                
+                console.log('二维码生成成功');
+            } catch (error) {
+                console.error('生成二维码失败:', error);
+                alert('生成二维码失败，请稍后再试');
+            }
+        }
+        
+        // 兼容旧的函数名
+        window.toggleQDCode = window.toggleQRCode = toggleQRCode;
+        
+        // 确保函数在全局作用域可用
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成，QRCode状态:', typeof QRCode);
+        });
+    </script>
+    <!-- 最后加载其他脚本 -->
+    <script src="app.js" defer></script>
+    <script src="share.js" defer></script>
 </head>
 <body>
     <header class="header">
@@ -22,6 +115,10 @@
                     <button class="action-btn" id="copyBtn">
                         <i class="fas fa-copy"></i>
                         复制内容
+                    </button>
+                    <button class="action-btn qr-btn" data-url="" title="显示二维码">
+                        <i class="fas fa-qrcode"></i>
+                        显示二维码
                     </button>
                     <button class="action-btn" id="editBtn">
                         <i class="fas fa-edit"></i>
@@ -60,28 +157,11 @@
             </div>
         </div>
 
-        <!-- KV和R2文件列表 -->
-        <div class="content-card file-list-card">
-            <h3>KV 存储</h3>
-            <div id="kvList" class="file-list">
-                <!-- KV文件列表将通过JavaScript动态添加 -->
-            </div>
-        </div>
-
-        <div class="content-card file-list-card">
-            <h3>R2 存储</h3>
-            <div id="r2List" class="file-list">
-                <!-- R2文件列表将通过JavaScript动态添加 -->
-            </div>
+        <!-- Toast提示元素 -->
+        <div class="toast" id="toast">
+            <i class="fas fa-check-circle"></i>
+            <span>内容已复制到剪贴板</span>
         </div>
     </div>
-
-    <!-- Toast提示元素 -->
-    <div class="toast" id="toast">
-        <i class="fas fa-check-circle"></i>
-        <span>内容已复制到剪贴板</span>
-    </div>
-
-    <script src="/share.js"></script>
 </body>
 </html> 

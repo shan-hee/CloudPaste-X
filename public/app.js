@@ -95,93 +95,52 @@ function initTextSubmit() {
                 console.log('解析响应:', result);
                 
                 if (result.success) {
-                    // 创建结果显示
-                    const resultDiv = document.getElementById('result');
-                    const url = `${window.location.origin}${result.data.url}`;
-                    const textContentElement = document.getElementById('textContent');
+                    // 显示分享结果
+                    shareResult.style.display = 'block';
+                    shareResult.classList.remove('error');
+                    shareResult.classList.add('success');
+                    shareLink.value = `${window.location.origin}${result.data.url}`;
                     
-                    // 获取过期时间文本
-                    const durationText = {
-                        '1h': '1小时后过期',
-                        '1d': '1天后过期',
-                        '7d': '7天后过期',
-                        '30d': '30天后过期',
-                        'never': '永久有效'
-                    };
+                    // 更新字符数显示
+                    const charCount = document.getElementById('textContent').value.length;
+                    const charCountSpan = shareResult.querySelector('.info-item:nth-child(2)');
+                    if (charCountSpan) {
+                        charCountSpan.innerHTML = `<i class="fas fa-text-width"></i>${charCount} 字符`;
+                    }
 
-                    // 创建新的结果元素
-                    const newResultDiv = document.createElement('div');
-                    newResultDiv.innerHTML = `
-                        <div class="share-result success">
-                            <div class="result-header">
-                                <i class="fas fa-check-circle"></i>
-                                <h3>文本上传成功！</h3>
-                            </div>
-                            <div class="file-info">
-                                <div class="info-item">
-                                    <i class="fas fa-file-alt"></i>
-                                    <span>文本内容</span>
-                                </div>
-                                <div class="info-item">
-                                    <i class="fas fa-text-width"></i>
-                                    <span>${textContentElement ? textContentElement.value.length : 0} 字符</span>
-                                </div>
-                            </div>
-                            <div class="share-settings">
-                                <div class="setting-item">
-                                    <i class="far fa-clock"></i>
-                                    <span>${durationText[duration]}</span>
-                                </div>
-                                ${password ? `
-                                    <div class="setting-item">
-                                        <i class="fas fa-lock"></i>
-                                        <span>已设置密码保护</span>
-                                    </div>
-                                ` : ''}
-                                ${maxViews > 0 ? `
-                                    <div class="setting-item">
-                                        <i class="far fa-eye"></i>
-                                        <span>限制访问 ${maxViews} 次</span>
-                                    </div>
-                                ` : ''}
-                            </div>
-                            <div class="share-link-container">
-                                <div class="link-group">
-                                    <input type="text" class="share-link" value="${url}" readonly>
-                                    <button class="copy-btn" onclick="copyToClipboard('${url}')" title="复制链接">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                </div>
-                                <div class="qr-group">
-                                    <button class="qr-btn" onclick="toggleQRCode('${url}')" title="显示二维码">
-                                        <i class="fas fa-qrcode"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="qr-code-container" style="display: none;">
-                                <div class="qr-code"></div>
-                                <button class="download-qr" title="下载二维码">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-
-                    // 将新的结果添加到结果区域的顶部
-                    resultDiv.insertBefore(newResultDiv, resultDiv.firstChild);
-
-                    // 自动选中分享链接
-                    const shareLinkInput = newResultDiv.querySelector('.share-link');
-                    shareLinkInput.select();
+                    // 更新过期时间和最大访问次数
+                    if (result.data.expiresAt) {
+                        const expiresAtSpan = shareResult.querySelector('.expires-at');
+                        if (expiresAtSpan) {
+                            expiresAtSpan.textContent = new Date(result.data.expiresAt).toLocaleString();
+                            expiresAtSpan.style.display = 'inline';
+                        }
+                    } else {
+                        const expiresAtSpan = shareResult.querySelector('.expires-at');
+                        if (expiresAtSpan) {
+                            expiresAtSpan.style.display = 'none';
+                        }
+                    }
                     
+                    if (result.data.maxViews > 0) {
+                        const maxViewsSpan = shareResult.querySelector('.max-views');
+                        if (maxViewsSpan) {
+                            maxViewsSpan.textContent = result.data.maxViews;
+                            maxViewsSpan.style.display = 'inline';
+                        }
+                    } else {
+                        const maxViewsSpan = shareResult.querySelector('.max-views');
+                        if (maxViewsSpan) {
+                            maxViewsSpan.style.display = 'none';
+                        }
+                    }
+
                     // 清空表单
+                    document.getElementById('textContent').value = '';
                     document.getElementById('textPassword').value = '';
                     document.getElementById('textCustomUrl').value = '';
                     document.getElementById('textMaxViews').value = '0';
-                    if (textContentElement) {
-                        textContentElement.value = '';
-                        document.getElementById('charCount').textContent = '0 字符';
-                    }
+                    document.getElementById('charCount').textContent = '0 字符';
 
                     // 添加到存储列表
                     displayStorageList(null, {
@@ -246,17 +205,31 @@ function initTextSubmit() {
     if (qrBtn) {
         qrBtn.addEventListener('click', () => {
             const qrCodeDiv = document.getElementById('qrCode');
-            const isVisible = qrCodeContainer.style.display === 'block';
+            const qrCodeContainer = document.getElementById('qrCodeContainer');
+            const isVisible = qrCodeContainer.classList.contains('active');
             
             if (isVisible) {
-                hideQRCode();
+                qrCodeContainer.classList.remove('active');
+                setTimeout(() => {
+                    qrCodeContainer.style.display = 'none';
+                }, 300);
+                qrBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
+                qrBtn.setAttribute('title', '显示二维码');
             } else {
                 // 清空之前的二维码
                 qrCodeDiv.innerHTML = '';
+                // 先显示容器
+                qrCodeContainer.style.display = 'flex';
+                // 强制重绘
+                qrCodeContainer.offsetHeight;
+                // 添加动画类
+                qrCodeContainer.classList.add('active');
+                
                 // 生成新的二维码
-                const shareUrl = shareLink.value.replace('/share/', '/');
+                const shareUrl = shareLink.value;
                 QRCode.toDataURL(shareUrl, {
-                    width: 200,
+                    width: 250,
+                    height: 250,
                     margin: 2,
                     color: {
                         dark: '#000000',
@@ -277,7 +250,6 @@ function initTextSubmit() {
                     // 保存数据URL用于下载
                     downloadQRCodeBtn.setAttribute('data-qr-url', url);
                 });
-                qrCodeContainer.style.display = 'block';
                 qrBtn.innerHTML = '<i class="fas fa-times"></i>';
                 qrBtn.setAttribute('title', '关闭二维码');
             }
@@ -286,13 +258,26 @@ function initTextSubmit() {
 
     // 关闭二维码
     if (closeQRCodeBtn) {
-        closeQRCodeBtn.addEventListener('click', hideQRCode);
+        closeQRCodeBtn.addEventListener('click', () => {
+            const qrCodeContainer = document.getElementById('qrCodeContainer');
+            qrCodeContainer.classList.remove('active');
+            setTimeout(() => {
+                qrCodeContainer.style.display = 'none';
+            }, 300);
+            qrBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
+            qrBtn.setAttribute('title', '显示二维码');
+        });
     }
 
     // 点击遮罩层关闭
     qrCodeContainer.addEventListener('click', (e) => {
         if (e.target === qrCodeContainer) {
-            hideQRCode();
+            qrCodeContainer.classList.remove('active');
+            setTimeout(() => {
+                qrCodeContainer.style.display = 'none';
+            }, 300);
+            qrBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
+            qrBtn.setAttribute('title', '显示二维码');
         }
     });
 
@@ -1589,7 +1574,7 @@ async function handleDelete(id) {
 // 删除存储项
 async function deleteStorageItem(id, type) {
     const confirmed = await showConfirmDialog(
-        '确定要删除这个文本分享吗？',
+        '确定要删除这个分享吗？',
         '此操作不可恢复！'
     );
     
@@ -1599,32 +1584,43 @@ async function deleteStorageItem(id, type) {
         // 立即从界面上移除
         const item = document.querySelector(`.storage-item[data-id="${id}"]`);
         if (item) {
-            item.remove();
+            item.classList.add('deleting');
         }
 
         // 发送删除请求
         const response = await fetch(`/api/share/${id}`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache'
+                'Content-Type': 'application/json'
             }
         });
 
         const data = await response.json();
         
         if (data.success) {
-            // 只更新统计数据，不显示成功通知
+            if (item) {
+                item.remove();
+            }
+            showToast('删除成功', 'success');
+            // 更新统计数据
             await fetchShareStats();
         } else {
-            // 如果删除失败，显示错误消息并重新获取列表
+            // 如果删除失败，恢复界面显示并显示错误消息
+            if (item) {
+                item.classList.remove('deleting');
+            }
             showToast(data.message || '删除失败', 'error');
+            // 重新获取列表
             await fetchStorageList();
         }
     } catch (err) {
         console.error('删除失败:', err);
+        // 恢复界面显示
+        if (item) {
+            item.classList.remove('deleting');
+        }
         showToast(err.message || '删除失败', 'error');
-        // 如果出错，重新获取列表以恢复状态
+        // 重新获取列表
         await fetchStorageList();
     }
 }

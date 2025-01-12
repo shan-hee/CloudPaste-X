@@ -132,6 +132,24 @@
             </button>
 
             <div id="shareResult" class="share-result" style="display: none;">
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i>
+                    文本上传成功！
+                </div>
+                <div class="content-info">
+                    <div class="info-item">
+                        <i class="fas fa-file-alt"></i>
+                        <span>文本内容</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-text-width"></i>
+                        <span class="char-count">0 字符</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-clock"></i>
+                        <span class="expires-at"></span>
+                    </div>
+                </div>
                 <div class="share-link-container">
                     <input type="text" id="shareLink" readonly>
                     <button class="copy-btn" id="copyShareLink" title="复制链接">
@@ -144,7 +162,7 @@
                 <div id="qrCodeContainer" class="qr-code-container" style="display: none;">
                     <div class="qr-code-modal">
                         <h3>扫描二维码访问</h3>
-                        <div id="qrCode"></div>
+                        <div class="qr-code" id="qrCode"></div>
                         <div class="qr-code-actions">
                             <button class="qr-download-btn" id="downloadQRCode">
                                 <i class="fas fa-download"></i> 下载二维码
@@ -154,10 +172,6 @@
                             </button>
                         </div>
                     </div>
-                </div>
-                <div class="share-info">
-                    <span class="expires-at"></span>
-                    <span class="max-views"></span>
                 </div>
             </div>
         </div>

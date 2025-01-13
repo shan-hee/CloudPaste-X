@@ -17,23 +17,41 @@ function updateThemeIcon(theme) {
     themeIcon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
 }
 
-// 初始化主题图标
-updateThemeIcon(document.documentElement.getAttribute('data-theme'));
+// 检测系统主题
+function detectSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
-themeToggle.addEventListener('click', () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    updateThemeIcon(newTheme);
-    localStorage.setItem('theme', newTheme);
+// 应用主题
+function applyTheme(theme) {
+    if (theme === 'auto') {
+        theme = detectSystemTheme();
+    }
+    document.documentElement.setAttribute('data-theme', theme);
+    updateThemeIcon(theme);
+}
+
+// 监听系统主题变化
+const systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+systemThemeMediaQuery.addListener(() => {
+    const currentTheme = localStorage.getItem('theme') || 'auto';
+    if (currentTheme === 'auto') {
+        applyTheme('auto');
+    }
 });
 
-// 检查并应用保存的主题设置
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme) {
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
-}
+// 初始化主题
+const savedTheme = localStorage.getItem('theme') || 'auto';
+applyTheme(savedTheme);
+
+// 点击按钮切换主题
+themeToggle.addEventListener('click', () => {
+    const currentTheme = localStorage.getItem('theme') || 'auto';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+    localStorage.setItem('theme', newTheme);
+    applyTheme(newTheme);
+});
 
 // 获取分享ID
 const shareId = window.location.pathname.split('/')[2];
@@ -147,9 +165,16 @@ async function loadShareContent() {
             
             // 更新信息
             document.getElementById('createTime').textContent = formatDate(data.data.created);
-            document.getElementById('viewCount').textContent = data.data.views;
-            document.getElementById('expireTime').textContent = data.data.expiresAt ? 
-                formatDate(data.data.expiresAt) : '永久有效';
+            document.getElementById('viewCount').value = data.data.maxViews || 0;
+            
+            // 设置过期时间
+            const expireTimeInput = document.getElementById('expireTime');
+            if (data.data.expiresAt) {
+                const expireDate = new Date(data.data.expiresAt);
+                expireTimeInput.value = expireDate.toISOString().slice(0, 16);
+            } else {
+                expireTimeInput.value = '';
+            }
 
             // 更新二维码按钮的URL
             const qrButton = document.querySelector('.qr-btn');
@@ -167,6 +192,7 @@ async function loadShareContent() {
 
 // 格式化日期
 function formatDate(dateString) {
+    if (!dateString) return '永久有效';
     const date = new Date(dateString);
     return date.toLocaleString('zh-CN', {
         year: 'numeric',
@@ -263,9 +289,11 @@ editBtn.addEventListener('click', () => {
     undoStack = [];
     redoStack = [];
     
-    // 允许编辑可访问次数
+    // 允许编辑可访问次数和过期时间
     const viewCountInput = document.getElementById('viewCount');
+    const expireTimeInput = document.getElementById('expireTime');
     viewCountInput.removeAttribute('readonly');
+    expireTimeInput.removeAttribute('readonly');
 });
 
 // 取消编辑
@@ -280,9 +308,11 @@ cancelBtn.addEventListener('click', () => {
             toggleFullscreen();
         }
         
-        // 禁用可访问次数编辑
+        // 禁用可访问次数和过期时间编辑
         const viewCountInput = document.getElementById('viewCount');
+        const expireTimeInput = document.getElementById('expireTime');
         viewCountInput.setAttribute('readonly', 'readonly');
+        expireTimeInput.setAttribute('readonly', 'readonly');
         
         // 恢复预览模式
         isPreviewMode = true;
@@ -296,16 +326,16 @@ saveBtn.addEventListener('click', async () => {
         const urlParams = new URLSearchParams(window.location.search);
         const shareId = urlParams.get('id');
         const viewCount = parseInt(document.getElementById('viewCount').value) || 0;
+        const expireTime = document.getElementById('expireTime').value;
         const currentContent = editContent.value;
         
         const requestData = {
             content: currentContent,
-            maxViews: viewCount
+            maxViews: viewCount,
+            expiresAt: expireTime || null
         };
         
-        console.log('发送的数据:', requestData);
-        
-        const response = await fetch(`/s/${shareId}`, {
+        const response = await fetch(`/api/text/${shareId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -331,8 +361,11 @@ saveBtn.addEventListener('click', async () => {
                 toggleFullscreen();
             }
             
+            // 禁用编辑
             const viewCountInput = document.getElementById('viewCount');
+            const expireTimeInput = document.getElementById('expireTime');
             viewCountInput.setAttribute('readonly', 'readonly');
+            expireTimeInput.setAttribute('readonly', 'readonly');
             
             isPreviewMode = true;
             previewModeBtn.classList.add('active');
@@ -540,4 +573,6 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && editMode.classList.contains('fullscreen')) {
         toggleFullscreen();
     }
-}); 
+});
+
+

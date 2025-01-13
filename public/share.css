@@ -155,7 +155,7 @@
     padding: 15px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    background: white;
+    background: var(--container-bg);
     color: var(--text-color);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 14px;
@@ -930,4 +930,199 @@
 [data-theme='dark'] #editBtn.editing ~ .info-group #viewCount {
     background: var(--container-bg);
     border-color: var(--border-color);
+}
+
+/* 亮色主题样式 */
+[data-theme='light'] .share-content {
+    background: white;
+    color: #333;
+    border-color: #dee2e6;
+}
+
+/* 自动主题样式 */
+@media (prefers-color-scheme: dark) {
+    [data-theme='auto'] .share-content {
+        background: var(--container-bg);
+        color: var(--text-color);
+        border-color: var(--border-color);
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    [data-theme='auto'] .share-content {
+        background: white;
+        color: #333;
+        border-color: #dee2e6;
+    }
+}
+
+#expireTime {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: inherit;
+    padding: 0 4px;
+    font-family: inherit;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%234e95ff' d='M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right center;
+    padding-right: 24px;
+    position: relative;
+    z-index: 1;
+}
+
+#expireTime::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    cursor: pointer;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 24px;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    z-index: 2;
+}
+
+#expireTime[readonly]::-webkit-calendar-picker-indicator {
+    display: none;
+}
+
+#expireTime:focus {
+    outline: none;
+    border-bottom: 1px solid var(--primary-color);
+}
+
+/* 编辑模式下的输入框样式 */
+#editBtn.editing ~ .info-group #expireTime {
+    border: 1px solid var(--border-color);
+    background-color: var(--container-bg);
+    border-radius: 4px;
+    cursor: pointer;
+    pointer-events: auto;
+    padding: 4px 24px 4px 8px;
+    position: relative;
+}
+
+#editBtn.editing ~ .info-group #expireTime:hover {
+    border-color: var(--primary-color);
+}
+
+/* 非编辑模式下的输入框样式 */
+#expireTime[readonly] {
+    pointer-events: none;
+    border: none !important;
+    background-color: transparent !important;
+}
+
+/* 暗色主题下的输入框样式 */
+[data-theme='dark'] #expireTime {
+    color: var(--text-color);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z'/%3E%3C/svg%3E");
+}
+
+[data-theme='dark'] #editBtn.editing ~ .info-group #expireTime {
+    background-color: var(--container-bg);
+    border-color: var(--border-color);
+}
+
+/* 自动主题样式 */
+@media (prefers-color-scheme: dark) {
+    [data-theme='auto'] #expireTime {
+        color: var(--text-color);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z'/%3E%3C/svg%3E");
+    }
+    
+    [data-theme='auto'] #editBtn.editing ~ .info-group #expireTime {
+        background-color: var(--container-bg);
+        border-color: var(--border-color);
+    }
+    [data-theme='auto'] .edit-actions {
+        background: var(--container-bg);
+        border-color: var(--border-color);
+    }
+    [data-theme='auto'] .cancel-btn {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: var(--text-color) !important;
+        border-color: var(--border-color) !important;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    [data-theme='auto'] #expireTime {
+        color: #333;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%234e95ff' d='M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z'/%3E%3C/svg%3E");
+    }
+    
+    [data-theme='auto'] #editBtn.editing ~ .info-group #expireTime {
+        background-color: white;
+        border-color: #dee2e6;
+    }
+    [data-theme='auto'] .edit-actions {
+        background: #dee2e6;
+        border-color: #dee2e6;
+    }
+    [data-theme='auto'] .cancel-btn {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: var(--text-color) !important;
+        border-color: var(--border-color) !important;
+    }
+}
+
+/* 亮色主题样式 */
+[data-theme='light'] .edit-mode {
+    background: white;
+}
+
+[data-theme='light'] .edit-content,
+[data-theme='light'] .preview-content {
+    background: white;
+    color: #333;
+}
+
+/* 暗色主题样式 */
+[data-theme='dark'] .edit-mode {
+    background: var(--container-bg);
+}
+
+[data-theme='dark'] .edit-content,
+[data-theme='dark'] .preview-content {
+    background: var(--container-bg);
+    color: var(--text-color);
+}
+
+/* 自动主题样式 */
+@media (prefers-color-scheme: dark) {
+    [data-theme='auto'] .edit-mode {
+        background: var(--container-bg);
+    }
+    
+    [data-theme='auto'] .edit-content,
+    [data-theme='auto'] .preview-content {
+        background: var(--container-bg);
+        color: var(--text-color);
+    }
+    
+    [data-theme='auto'] .editor-toolbar {
+        background: var(--container-bg);
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    [data-theme='auto'] .edit-mode {
+        background: white;
+    }
+    
+    [data-theme='auto'] .edit-content,
+    [data-theme='auto'] .preview-content {
+        background: white;
+        color: #333;
+    }
+    
+    [data-theme='auto'] .editor-toolbar {
+        background: #f5f5f5;
+    }
 }

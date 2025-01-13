@@ -219,6 +219,83 @@ app.get('/download/:id', async (c) => {
   }
 })
 
+// 更新文本内容
+app.put('/api/text/:id', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const data = await c.req.json()
+    const { content, password, duration, maxViews } = data
+
+    // 从 KV 中获取原始分享数据
+    const shareData = await c.env.CLOUDPASTE_KV.get(id, 'json')
+    if (!shareData) {
+      return c.json({
+        success: false,
+        message: '分享不存在'
+      }, 404)
+    }
+
+    // 验证分享类型
+    if (shareData.type !== 'text') {
+      return c.json({
+        success: false,
+        message: '只能更新文本类型的分享'
+      }, 400)
+    }
+
+    // 计算新的过期时间
+    let expiresAt = null
+    if (duration) {
+      switch (duration) {
+        case '1h':
+          expiresAt = Date.now() + 60 * 60 * 1000
+          break
+        case '1d':
+          expiresAt = Date.now() + 24 * 60 * 60 * 1000
+          break
+        case '7d':
+          expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
+          break
+        case '30d':
+          expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000
+          break
+      }
+    }
+
+    // 更新分享数据
+    const updatedShareData = {
+      ...shareData,
+      content: content || shareData.content,
+      password: password || shareData.password,
+      maxViews: maxViews || shareData.maxViews,
+      expiresAt: expiresAt || shareData.expiresAt,
+      updated: Date.now()
+    }
+
+    // 存储更新后的数据到 KV
+    await c.env.CLOUDPASTE_KV.put(id, JSON.stringify(updatedShareData), {
+      expirationTtl: updatedShareData.expiresAt ? Math.ceil((updatedShareData.expiresAt - Date.now()) / 1000) : undefined
+    })
+
+    console.log('文本分享更新成功:', id)
+    
+    return c.json({
+      success: true,
+      data: {
+        id,
+        url: `/s/${id}`,
+        expiresAt: updatedShareData.expiresAt
+      }
+    })
+  } catch (error) {
+    console.error('更新文本分享失败:', error)
+    return c.json({
+      success: false,
+      message: error.message || '更新文本分享失败'
+    }, 500)
+  }
+})
+
 // 删除分享
 app.delete('/api/share/:id', async (c) => {
   try {

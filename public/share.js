@@ -67,17 +67,27 @@ function initPreviewMode() {
     }
 }
 
-// 预览模式切换
+// 切换预览模式
 function togglePreviewMode() {
-    // 如果已经是预览模式，不做任何操作
-    if (isPreviewMode) {
-        return;
+    if (!isPreviewMode) {
+        isPreviewMode = true;
+        previewModeBtn.classList.add('active');
+        shareContent.value=editContent.value  ;
+        shareContentdiv.style.display = 'block';    
+        shareContent.style.display = 'block';
+        
+        // 关闭编辑模式
+        shareContent.style.display = 'block';
+        editMode.style.display = 'none';
+        // 移除编辑状态样式
+        editBtn.classList.remove('editing');
+        if (editMode.classList.contains('fullscreen')) {
+            toggleFullscreen();
+        }
     }
-    
-    // 如果不是预览模式，切换回预览模式
-    isPreviewMode = true;
-    previewModeBtn.classList.add('active');
 }
+
+
 
 // 退出预览模式
 function exitPreviewMode() {
@@ -239,7 +249,10 @@ loadShareContent();
 
 // 切换到编辑模式
 editBtn.addEventListener('click', () => {
-    exitPreviewMode();
+    // 关闭预览模式
+    isPreviewMode = false;
+    previewModeBtn.classList.remove('active');
+    
     editContent.value = shareContent.value;
     shareContentdiv.style.display = 'none';    
     shareContent.style.display = 'none';
@@ -249,11 +262,16 @@ editBtn.addEventListener('click', () => {
     // 清空历史记录
     undoStack = [];
     redoStack = [];
+    
+    // 允许编辑可访问次数
+    const viewCountInput = document.getElementById('viewCount');
+    viewCountInput.removeAttribute('readonly');
 });
 
 // 取消编辑
 cancelBtn.addEventListener('click', () => {
     if (confirm('确定要取消编辑吗？未保存的更改将会丢失。')) {
+        shareContentdiv.style.display = 'block';
         shareContent.style.display = 'block';
         editMode.style.display = 'none';
         // 移除编辑状态样式
@@ -261,6 +279,11 @@ cancelBtn.addEventListener('click', () => {
         if (editMode.classList.contains('fullscreen')) {
             toggleFullscreen();
         }
+        
+        // 禁用可访问次数编辑
+        const viewCountInput = document.getElementById('viewCount');
+        viewCountInput.setAttribute('readonly', 'readonly');
+        
         // 恢复预览模式
         isPreviewMode = true;
         previewModeBtn.classList.add('active');
@@ -272,31 +295,48 @@ saveBtn.addEventListener('click', async () => {
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const shareId = urlParams.get('id');
+        const viewCount = parseInt(document.getElementById('viewCount').value) || 0;
+        const currentContent = editContent.value;
         
-        const response = await fetch(`/api/share/${shareId}`, {
+        const requestData = {
+            content: currentContent,
+            maxViews: viewCount
+        };
+        
+        console.log('发送的数据:', requestData);
+        
+        const response = await fetch(`/s/${shareId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({
-                content: editContent.value
-            })
+            body: JSON.stringify(requestData)
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
         
         if (data.success) {
-            shareContent.value = editContent.value;
+            shareContent.value = currentContent;
+            shareContentdiv.style.display = 'block';
             shareContent.style.display = 'block';
             editMode.style.display = 'none';
-            // 移除编辑状态样式
             editBtn.classList.remove('editing');
             if (editMode.classList.contains('fullscreen')) {
                 toggleFullscreen();
             }
-            // 恢复预览模式
+            
+            const viewCountInput = document.getElementById('viewCount');
+            viewCountInput.setAttribute('readonly', 'readonly');
+            
             isPreviewMode = true;
             previewModeBtn.classList.add('active');
+            
             showToast('保存成功');
         } else {
             showToast(data.message || '保存失败', 3000);

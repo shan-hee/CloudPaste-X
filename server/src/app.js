@@ -100,6 +100,59 @@ app.get('/s/:id', async (req, res) => {
     }
 });
 
+// 更新分享内容
+app.put('/s/:id', async (req, res) => {
+    try {
+        const { content, maxViews } = req.body;
+        
+        // 验证必需字段
+        if (!content) {
+            return res.status(400).json({
+                success: false,
+                message: '内容不能为空'
+            });
+        }
+
+        const share = await require('./models/Share').findOne({
+            $or: [
+                { id: req.params.id },
+                // { customUrl: req.params.id }
+            ]
+        });
+
+        if (!share) {
+            return res.status(404).json({
+                success: false,
+                message: '分享不存在或已过期'
+            });
+        }
+
+        // 更新内容和访问次数
+        share.content = content;
+        if (typeof maxViews === 'number') {
+            share.maxViews = maxViews;
+        }
+        
+        await share.save();
+
+        res.json({
+            success: true,
+            message: '更新成功',
+            data: {
+                content: share.content,
+                views: share.views,
+                maxViews: share.maxViews
+            }
+        });
+    } catch (err) {
+        console.error('更新分享内容失败:', err);
+        res.status(500).json({
+            success: false,
+            message: err.message || '更新分享内容失败'
+        });
+    }
+});
+
 // 错误处理中间件
 app.use((err, req, res, next) => {
     console.error('错误:', err);

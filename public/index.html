@@ -27,12 +27,12 @@
     <h1 class="site-title">CloudPaste</h1>
     
     <div class="container">
-        <div class="tabs" data-active-tab="file">
-            <button class="tab" data-tab="text">
+        <div class="tabs" data-active-tab="text">
+            <button class="tab active" data-tab="text">
                 <i class="fas fa-file-alt"></i>
                 文本上传
             </button>
-            <button class="tab active" data-tab="file">
+            <button class="tab" data-tab="file">
                 <i class="fas fa-file-upload"></i>
                 文件上传
             </button>
@@ -42,7 +42,7 @@
             </button>
         </div>
 
-        <div class="tab-content" id="textUpload" style="display: none;">
+        <div class="tab-content active" id="textUpload">
             <div class="editor-wrapper">
                 <div class="editor-header">
                     <div class="editor-tabs">
@@ -176,7 +176,7 @@
             </div>
         </div>
 
-        <div class="tab-content active" id="fileUpload">
+        <div class="tab-content" id="fileUpload" style="display: none;">
             <input type="file" id="fileInput" multiple style="display: none;">
             <div id="uploadArea">
                 <i class="fas fa-cloud-upload-alt"></i>

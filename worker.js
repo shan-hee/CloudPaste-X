@@ -231,14 +231,6 @@ async function handleRequest(request, env, ctx) {
     }
   }
 
-  // 处理其他请求...
-  return await handleOtherRequests(request, env, ctx);
-}
-
-// 处理非书签相关的请求
-async function handleOtherRequests(request, env, ctx) {
-  const url = new URL(request.url);
-  
   // 处理文件上传
   if (url.pathname === '/upload' && request.method === 'POST') {
     return await FileHandler.upload(request, env);
@@ -249,10 +241,109 @@ async function handleOtherRequests(request, env, ctx) {
     return await FileHandler.download(request, env);
   }
   
-  // 返回主页
+  // 处理分享内容相关的请求
+  if (url.pathname.startsWith('/s/')) {
+    const id = url.pathname.split('/').pop();
+    
+    // 处理 PUT 请求（更新内容）
+    if (request.method === 'PUT') {
+      try {
+        const data = await request.json();
+        const { content, maxViews } = data;
+
+        // 验证必需字段
+        if (!content) {
+          return new Response(JSON.stringify({
+            success: false,
+            message: '内容不能为空'
+          }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // 获取现有分享
+        const share = await env.CLOUD_PASTE.get(id);
+        if (!share) {
+          return new Response(JSON.stringify({
+            success: false,
+            message: '分享不存在或已过期'
+          }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const shareData = JSON.parse(share);
+        
+        // 只更新内容和最大访问次数
+        shareData.content = content;
+        if (typeof maxViews === 'number' && maxViews >= 0) {
+          shareData.maxViews = maxViews;
+        }
+        
+        // 保存更新后的内容
+        await env.CLOUD_PASTE.put(id, JSON.stringify(shareData));
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: '更新成功',
+          data: {
+            content: shareData.content,
+            maxViews: shareData.maxViews
+          }
+        }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return Utils.handleError(error);
+      }
+    }
+    
+    // 处理 GET 请求（获取内容）
+    if (request.method === 'GET') {
+      try {
+        const share = await env.CLOUD_PASTE.get(id);
+        if (!share) {
+          return new Response(JSON.stringify({
+            success: false,
+            message: '分享不存在或已过期'
+          }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        const shareData = JSON.parse(share);
+        
+        // 检查是否是 API 请求
+        const isApiRequest = request.headers.get('accept')?.includes('application/json') || 
+                           request.headers.get('x-requested-with') === 'XMLHttpRequest';
+
+        if (isApiRequest) {
+          return new Response(JSON.stringify({
+            success: true,
+            data: {
+              content: shareData.content,
+              maxViews: shareData.maxViews
+            }
+          }), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // 返回 HTML 页面
   return new Response(template, {
     headers: { 'Content-Type': 'text/html;charset=UTF-8' }
   });
+      } catch (error) {
+        return Utils.handleError(error);
+      }
+    }
+  }
+
+  // 返回 404
+  return new Response('Not Found', { status: 404 });
 }
 
 // 基础样式

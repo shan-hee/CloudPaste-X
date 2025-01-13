@@ -150,7 +150,7 @@
 }
 
 .share-content {
-    width: 100%;
+    width: 95%;
     min-height: 300px;
     padding: 15px;
     border: 1px solid var(--border-color);
@@ -421,12 +421,14 @@
     flex: 1;
     border: 1px solid var(--border-color);
     border-top: none;
+    overflow: hidden;
 }
 
 .editor-pane, .preview-pane {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 .editor-pane {
@@ -444,14 +446,43 @@
     outline: none;
     min-height: 400px;
     background: white;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-x: auto;
 }
 
 .preview-content {
     flex: 1;
     padding: 15px;
-    overflow-y: auto;
+    overflow-y: auto; /* 仅纵向滚动 */
+    overflow-x: auto; /* 仅在内容超出时显示横向滚动 */
     min-height: 400px;
     background: white;
+    white-space: normal; /* 默认折行 */
+    word-wrap: break-word; /* 确保文本折行 */
+    word-break: break-word; /* 确保长单词不会溢出 */
+    position: relative;
+    margin-right: -4px;
+    margin-bottom: -4px;
+}
+
+/* 预览区域内的普通文本和段落保持不自动换行 */
+.preview-content p {
+    white-space: pre;
+    overflow-x: auto;
+}
+
+/* 但是一些特殊元素允许自动换行，以保持良好的显示效果 */
+.preview-content h1,
+.preview-content h2,
+.preview-content h3,
+.preview-content h4,
+.preview-content h5,
+.preview-content h6,
+.preview-content li,
+.preview-content blockquote,
+.preview-content table {
+    white-space: pre-wrap;
 }
 
 /* Markdown 预览样式 */
@@ -556,7 +587,7 @@
 }
 
 .edit-actions {
-    width: 50%;
+    width: 100%;
     display: flex;
     justify-content: flex-end;
     margin-left: auto;   
@@ -704,4 +735,199 @@
     background: #3a87ff;
     border-color: #3a87ff;
     color: white;
-} 
+}
+
+/* 暗色主题样式 */
+[data-theme='dark'] .edit-content {
+    background: var(--container-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+[data-theme='dark'] .editor-toolbar {
+    background: var(--container-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme='dark'] .toolbar-btn {
+    color: var(--text-color);
+}
+
+[data-theme='dark'] .toolbar-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .editor-container {
+    border-color: var(--border-color);
+}
+
+[data-theme='dark'] .preview-content {
+    background: var(--container-bg);
+    color: var(--text-color);
+}
+
+[data-theme='dark'] .toolbar-separator {
+    background: var(--border-color);
+}
+
+[data-theme='dark'] .edit-actions {
+    background: var(--container-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme='dark'] .cancel-btn {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme='dark'] .cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 暗色主题下的预览模式样式 */
+[data-theme='dark'] .share-content {
+    background: var(--container-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+[data-theme='dark'] #previewContent {
+    background: var(--container-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+[data-theme='dark'] .markdown-body {
+    color: var(--text-color);
+}
+
+[data-theme='dark'] .markdown-body code {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+[data-theme='dark'] .markdown-body pre {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .markdown-body pre code {
+    color: var(--text-color);
+}
+
+[data-theme='dark'] .markdown-body blockquote {
+    color: var(--secondary-color);
+    border-left-color: var(--border-color);
+}
+
+[data-theme='dark'] .markdown-body table th,
+[data-theme='dark'] .markdown-body table td {
+    border-color: var(--border-color);
+}
+
+[data-theme='dark'] .markdown-body table tr {
+    background-color: var(--container-bg);
+    border-top-color: var(--border-color);
+}
+
+[data-theme='dark'] .markdown-body table tr:nth-child(2n) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.markdown-body pre {
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.markdown-body code {
+    white-space: pre;
+    word-wrap: normal;
+}
+
+/* 自定义滚动条样式 */
+.preview-content::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+.preview-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.preview-content::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 2px;
+}
+
+.preview-content::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
+/* 暗色主题下的滚动条 */
+[data-theme='dark'] .preview-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme='dark'] .preview-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 修改预览内容区域的滚动条位置 */
+.preview-content {
+    flex: 1;
+    padding: 15px;
+    overflow-y: scroll;
+    overflow-x: scroll;
+    min-height: 400px;
+    background: white;
+    white-space: pre;
+    position: relative;
+    margin-right: -4px; /* 补偿滚动条宽度 */
+    margin-bottom: -4px; /* 补偿滚动条高度 */
+}
+
+/* 可访问次数输入框样式 */
+#viewCount {
+    width: 50px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: inherit;
+    padding: 0 4px;
+    text-align: center;
+}
+
+#viewCount:focus {
+    outline: none;
+    border-bottom: 1px solid var(--primary-color);
+}
+
+/* 编辑模式下的输入框样式 */
+#editBtn.editing ~ .info-group #viewCount {
+    border: 1px solid var(--border-color);
+    background: var(--container-bg);
+    border-radius: 4px;
+    cursor: text;
+    pointer-events: auto;
+}
+
+#editBtn.editing ~ .info-group #viewCount:hover {
+    border-color: var(--primary-color);
+}
+
+/* 非编辑模式下的输入框样式 */
+#viewCount[readonly] {
+    pointer-events: none;
+    border: none !important;
+    background: transparent !important;
+}
+
+/* 暗色主题下的输入框样式 */
+[data-theme='dark'] #viewCount {
+    color: var(--text-color);
+}
+
+[data-theme='dark'] #editBtn.editing ~ .info-group #viewCount {
+    background: var(--container-bg);
+    border-color: var(--border-color);
+}

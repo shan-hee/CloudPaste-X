@@ -16,10 +16,23 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '21'
+          node-version: '21.x'
+          cache: 'npm'
       
-      - name: Install wrangler
-        run: npm install -g wrangler
+      - name: Install Dependencies
+        run: |
+          npm ci
+          npm install -g wrangler
+      
+      - name: Cache Wrangler
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.wrangler
+            ~/.npm
+          key: ${{ runner.os }}-wrangler-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-wrangler-
       
       - name: Check and Create KV Namespace
         env:
@@ -27,91 +40,83 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           wrangler telemetry disable
-          # 检查 PASTE_STORE
-          KV_NAMESPACE="PASTE_STORE"
-          echo "Checking for KV namespace: $KV_NAMESPACE"
-          LIST_OUTPUT=$(wrangler kv namespace list)
-          echo "KV namespace list output: $LIST_OUTPUT"
           
-          KV_ID=$(echo "$LIST_OUTPUT" | jq -r '.[] | select(.title == "cloudpaste-'$KV_NAMESPACE'") | .id')
-          
-          if [ -z "$KV_ID" ]; then
-              echo "KV namespace $KV_NAMESPACE does not exist. Creating..."
-              CREATE_OUTPUT=$(wrangler kv namespace create "$KV_NAMESPACE")
-              echo "Create KV namespace output: $CREATE_OUTPUT"
-              KV_ID=$(echo "$CREATE_OUTPUT" | sed -n 's/.*id = "\([^"]*\)".*/\1/p')
-              
-              if [ -z "$KV_ID" ]; then
-                  echo "Failed to extract KV ID. Full output: $CREATE_OUTPUT"
-                  exit 1
+          function create_kv_namespace() {
+            local namespace=$1
+            echo "Processing KV namespace: $namespace"
+            
+            LIST_OUTPUT=$(wrangler kv namespace list)
+            if [ $? -ne 0 ]; then
+              echo "Failed to list KV namespaces"
+              exit 1
+            fi
+            
+            KV_ID=$(echo "$LIST_OUTPUT" | jq -r --arg title "cloudpaste-$namespace" '.[] | select(.title == $title) | .id')
+            
+            if [ -z "$KV_ID" ]; then
+              echo "Creating KV namespace: $namespace"
+              CREATE_OUTPUT=$(wrangler kv namespace create "$namespace")
+              if [ $? -ne 0 ]; then
+                echo "Failed to create KV namespace: $namespace"
+                exit 1
               fi
               
-              echo "KV namespace $KV_NAMESPACE created successfully with ID: $KV_ID"
-          else
-            echo "KV namespace $KV_NAMESPACE already exists with ID: $KV_ID"
-          fi
-          echo "PASTE_STORE_ID=$KV_ID" >> $GITHUB_ENV
-          
-          # 检查 UPLOAD_STATUS
-          KV_NAMESPACE="UPLOAD_STATUS"
-          echo "Checking for KV namespace: $KV_NAMESPACE"
-          
-          KV_ID=$(echo "$LIST_OUTPUT" | jq -r '.[] | select(.title == "cloudpaste-'$KV_NAMESPACE'") | .id')
-          
-          if [ -z "$KV_ID" ]; then
-              echo "KV namespace $KV_NAMESPACE does not exist. Creating..."
-              CREATE_OUTPUT=$(wrangler kv namespace create "$KV_NAMESPACE")
-              echo "Create KV namespace output: $CREATE_OUTPUT"
               KV_ID=$(echo "$CREATE_OUTPUT" | sed -n 's/.*id = "\([^"]*\)".*/\1/p')
-              
-              if [ -z "$KV_ID" ]; then
-                  echo "Failed to extract KV ID. Full output: $CREATE_OUTPUT"
-                  exit 1
-              fi
-              
-              echo "KV namespace $KV_NAMESPACE created successfully with ID: $KV_ID"
-          else
-            echo "KV namespace $KV_NAMESPACE already exists with ID: $KV_ID"
-          fi
-          echo "UPLOAD_STATUS_ID=$KV_ID" >> $GITHUB_ENV
+              echo "Created KV namespace with ID: $KV_ID"
+            else
+              echo "KV namespace already exists with ID: $KV_ID"
+            fi
+            
+            echo "${namespace}_ID=$KV_ID" >> $GITHUB_ENV
+          }
           
+          create_kv_namespace "PASTE_STORE"
+          create_kv_namespace "UPLOAD_STATUS"
+      
       - name: Check and Create R2 Bucket
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           R2_BUCKET="cloudpaste-files"
-          R2_BINDING="FILE_STORE"
-          echo "Checking for R2 bucket: $R2_BUCKET"
+          echo "Checking R2 bucket: $R2_BUCKET"
           
-          # List buckets and check if our bucket exists
           BUCKET_LIST=$(wrangler r2 bucket list)
-          BUCKET_EXISTS=$(echo "$BUCKET_LIST" | grep -w "$R2_BUCKET" || true)
+          if [ $? -ne 0 ]; then
+            echo "Failed to list R2 buckets"
+            exit 1
+          }
           
-          if [ -z "$BUCKET_EXISTS" ]; then
-              echo "R2 bucket $R2_BUCKET does not exist. Creating..."
-              CREATE_OUTPUT=$(wrangler r2 bucket create "$R2_BUCKET" --location apac)
-              echo "R2 bucket $R2_BUCKET created successfully"
+          if ! echo "$BUCKET_LIST" | grep -q "$R2_BUCKET"; then
+            echo "Creating R2 bucket: $R2_BUCKET"
+            if ! wrangler r2 bucket create "$R2_BUCKET" --location apac; then
+              echo "Failed to create R2 bucket"
+              exit 1
+            fi
+            echo "R2 bucket created successfully"
           else
-              echo "R2 bucket $R2_BUCKET already exists"
+            echo "R2 bucket already exists"
           fi
 
       - name: Update wrangler.toml
         run: |
-          # Read the entire content of wrangler.toml
-          WRANGLER_CONTENT=$(cat wrangler.toml)
+          if [ -z "$PASTE_STORE_ID" ] || [ -z "$UPLOAD_STATUS_ID" ]; then
+            echo "Error: KV namespace IDs are not set"
+            exit 1
+          fi
           
-          # Update both KV namespace IDs
-          UPDATED_CONTENT=$(echo "$WRANGLER_CONTENT" | \
-            sed -e "s/id = \"temporary-id-12345\"/id = \"$PASTE_STORE_ID\"/" \
-            -e "s/id = \"temporary-id-67890\"/id = \"$UPLOAD_STATUS_ID\"/")
+          # Create backup
+          cp wrangler.toml wrangler.toml.bak
           
-          # Write the updated content back to wrangler.toml
-          echo "$UPDATED_CONTENT" > wrangler.toml
+          # Update configuration
+          sed -i \
+            -e "s/id = \"temporary-id-12345\"/id = \"$PASTE_STORE_ID\"/" \
+            -e "s/id = \"temporary-id-67890\"/id = \"$UPLOAD_STATUS_ID\"/" \
+            wrangler.toml
           
-          echo "Updated wrangler.toml content:"
-          cat wrangler.toml
-          
+          echo "Updated wrangler.toml configuration:"
+          diff wrangler.toml.bak wrangler.toml || true
+      
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@2.0.0
         with:

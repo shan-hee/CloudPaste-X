@@ -114,6 +114,7 @@ function initTextSubmit() {
                         if (expiresAtSpan) {
                             expiresAtSpan.textContent = new Date(result.data.expiresAt).toLocaleString();
                             expiresAtSpan.style.display = 'inline';
+                            expiresAtSpan.style.fontWeight = 'normal';  // 恢复正常字重
                         }
                     } else {
                         const expiresAtSpan = shareResult.querySelector('.expires-at');
@@ -206,10 +207,13 @@ function initTextSubmit() {
         qrBtn.addEventListener('click', () => {
             const qrCodeDiv = document.getElementById('qrCode');
             const qrCodeContainer = document.getElementById('qrCodeContainer');
-            const isVisible = qrCodeContainer.classList.contains('active');
+            const isVisible = qrCodeContainer.style.display === 'flex';
+            const modal = qrCodeContainer.querySelector('.qr-code-modal');
             
             if (isVisible) {
-                qrCodeContainer.classList.remove('active');
+                // 添加关闭动画
+                modal.style.transform = 'translateY(-20px)';
+                modal.style.opacity = '0';
                 setTimeout(() => {
                     qrCodeContainer.style.display = 'none';
                 }, 300);
@@ -218,12 +222,10 @@ function initTextSubmit() {
             } else {
                 // 清空之前的二维码
                 qrCodeDiv.innerHTML = '';
-                // 先显示容器
-                qrCodeContainer.style.display = 'flex';
-                // 强制重绘
-                qrCodeContainer.offsetHeight;
-                // 添加动画类
-                qrCodeContainer.classList.add('active');
+                
+                // 设置初始样式
+                qrCodeContainer.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 1000;';
+                modal.style.cssText = 'background: white; padding: 24px; border-radius: 8px; text-align: center; max-width: 90%; width: 320px; position: relative; transform: translateY(-20px); opacity: 0; transition: all 0.3s ease;';
                 
                 // 生成新的二维码
                 const shareUrl = shareLink.value;
@@ -245,11 +247,19 @@ function initTextSubmit() {
                     const img = document.createElement('img');
                     img.src = url;
                     img.alt = '分享链接二维码';
+                    img.style.maxWidth = '100%';
                     qrCodeDiv.appendChild(img);
 
                     // 保存数据URL用于下载
                     downloadQRCodeBtn.setAttribute('data-qr-url', url);
                 });
+
+                // 添加显示动画
+                setTimeout(() => {
+                    modal.style.transform = 'translateY(0)';
+                    modal.style.opacity = '1';
+                }, 10);
+                
                 qrBtn.innerHTML = '<i class="fas fa-times"></i>';
                 qrBtn.setAttribute('title', '关闭二维码');
             }
@@ -260,7 +270,11 @@ function initTextSubmit() {
     if (closeQRCodeBtn) {
         closeQRCodeBtn.addEventListener('click', () => {
             const qrCodeContainer = document.getElementById('qrCodeContainer');
-            qrCodeContainer.classList.remove('active');
+            const modal = qrCodeContainer.querySelector('.qr-code-modal');
+            
+            // 添加关闭动画
+            modal.style.transform = 'translateY(-20px)';
+            modal.style.opacity = '0';
             setTimeout(() => {
                 qrCodeContainer.style.display = 'none';
             }, 300);
@@ -272,7 +286,11 @@ function initTextSubmit() {
     // 点击遮罩层关闭
     qrCodeContainer.addEventListener('click', (e) => {
         if (e.target === qrCodeContainer) {
-            qrCodeContainer.classList.remove('active');
+            const modal = qrCodeContainer.querySelector('.qr-code-modal');
+            
+            // 添加关闭动画
+            modal.style.transform = 'translateY(-20px)';
+            modal.style.opacity = '0';
             setTimeout(() => {
                 qrCodeContainer.style.display = 'none';
             }, 300);
@@ -438,6 +456,9 @@ function initFileUpload() {
     uploadArea.style.display = 'flex';
     fileList.style.display = 'none';
 
+    // 修改文件输入框为支持多文件
+    fileInput.setAttribute('multiple', 'true');
+
     // 处理文件选择
     fileInput.addEventListener('change', (event) => {
         console.log('文件选择事件触发');
@@ -474,7 +495,6 @@ function initFileUpload() {
             if (!selectedFiles.some(f => f.name === file.name)) {
                 selectedFiles.push(file);
                 const filePreview = createFilePreview(file);
-                const fileList = document.getElementById('fileList');
                 fileList.appendChild(filePreview);
             } else {
                 console.log('文件已存在:', file.name);
@@ -964,6 +984,17 @@ function initFileSubmit() {
         return uploadSpeed;
     }
 
+    // 添加获取持续时间的毫秒数的函数
+    function getDurationInMs(duration) {
+        const durations = {
+            '1h': 60 * 60 * 1000,
+            '1d': 24 * 60 * 60 * 1000,
+            '7d': 7 * 24 * 60 * 60 * 1000,
+            '30d': 30 * 24 * 60 * 60 * 1000
+        };
+        return durations[duration] || 0;
+    }
+
     if (submitFileBtn) {
         submitFileBtn.addEventListener('click', async () => {
             if (selectedFiles.length === 0) {
@@ -972,200 +1003,212 @@ function initFileSubmit() {
             }
 
             submitFileBtn.disabled = true;
-            submitFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在上传...';
+            submitFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在打包上传...';
             progressContainer.style.display = 'block';
 
             try {
-                for (let i = 0; i < selectedFiles.length; i++) {
-                    const file = selectedFiles[i];
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('password', filePassword.value);
-                    formData.append('duration', fileDuration.value);
-                    formData.append('customUrl', fileCustomUrl.value);
-                    formData.append('maxViews', fileMaxViews.value);
+                // 检查是否只有一个文件且是压缩文件
+                const isCompressedFile = selectedFiles.length === 1 && (
+                    selectedFiles[0].type === 'application/zip' ||
+                    selectedFiles[0].type === 'application/x-rar-compressed' ||
+                    selectedFiles[0].type === 'application/x-7z-compressed' ||
+                    selectedFiles[0].name.toLowerCase().endsWith('.zip') ||
+                    selectedFiles[0].name.toLowerCase().endsWith('.rar') ||
+                    selectedFiles[0].name.toLowerCase().endsWith('.7z')
+                );
 
-                    // 重置上传速度计算
-                    uploadStartTime = Date.now();
-                    lastUploadedBytes = 0;
-                    lastUploadTime = uploadStartTime;
-                    uploadSpeed = 0;
+                let uploadFile;
+                let originalFilenames;
 
-                    // 使用 XMLHttpRequest 替代 fetch 以支持上传进度
-                    const response = await new Promise((resolve, reject) => {
-                        const xhr = new XMLHttpRequest();
-                        
-                        xhr.upload.addEventListener('progress', (progressEvent) => {
-                            if (progressEvent.lengthComputable) {
-                                const currentTime = Date.now();
-                                const speed = calculateSpeed(progressEvent.loaded, currentTime);
-                                
-                                // 计算进度百分比
-                                const progress = (progressEvent.loaded / progressEvent.total) * 100;
-                                
-                                // 更新进度显示
-                                progressBar.style.width = `${progress}%`;
-                                progressPercent.textContent = `${Math.round(progress)}%`;
-                                
-                                // 更新文件名和速度显示
-                                const remainingBytes = progressEvent.total - progressEvent.loaded;
-                                const estimatedTimeSeconds = speed > 0 ? remainingBytes / speed : 0;
-                                
-                                // 使用图标显示上传状态
-                                progressText.innerHTML = `
-                                    <i class="fas fa-file"></i>
-                                    <i class="fas fa-arrow-right"></i>
-                                    <i class="fas fa-cloud-upload-alt"></i>
-                                    <span class="upload-count">${i + 1}/${selectedFiles.length}</span>
-                                    <i class="fas fa-tachometer-alt"></i>
-                                    <span class="upload-speed">${formatSpeed(speed)}</span>
-                                    ${estimatedTimeSeconds > 0 ? `
-                                        <i class="far fa-clock"></i>
-                                        <span class="time-remaining">${Math.ceil(estimatedTimeSeconds)}s</span>
-                                    ` : ''}
-                                `;
-                            }
-                        });
+                if (isCompressedFile) {
+                    // 如果是压缩文件，直接使用
+                    uploadFile = selectedFiles[0];
+                    originalFilenames = selectedFiles[0].name;
+                } else {
+                    // 如果不是压缩文件，创建zip
+                    const zip = new JSZip();
+                    
+                    // 将所有文件添加到 zip 中
+                    for (const file of selectedFiles) {
+                        zip.file(file.name, file);
+                    }
 
-                        xhr.upload.addEventListener('loadstart', () => {
-                            uploadStartTime = Date.now();
-                            lastUploadTime = uploadStartTime;
-                            lastUploadedBytes = 0;
-                        });
-
-                        xhr.upload.addEventListener('loadend', () => {
-                            // 清理速度更新定时器
-                            if (speedUpdateInterval) {
-                                clearInterval(speedUpdateInterval);
-                                speedUpdateInterval = null;
-                            }
-                        });
-
-                        xhr.addEventListener('load', () => {
-                            if (xhr.status >= 200 && xhr.status < 300) {
-                                resolve({
-                                    ok: true,
-                                    json: () => Promise.resolve(JSON.parse(xhr.responseText))
-                                });
-                            } else {
-                                reject(new Error(`HTTP Error: ${xhr.status}`));
-                            }
-                        });
-
-                        xhr.addEventListener('error', () => {
-                            reject(new Error('Network Error'));
-                        });
-
-                        xhr.open('POST', '/api/file');
-                        xhr.send(formData);
+                    // 生成 zip 文件
+                    const zipBlob = await zip.generateAsync({
+                        type: 'blob',
+                        compression: 'DEFLATE',
+                        compressionOptions: {
+                            level: 9
+                        }
+                    }, (metadata) => {
+                        // 更新压缩进度
+                        const progress = metadata.percent.toFixed(1);
+                        progressBar.style.width = `${progress}%`;
+                        progressPercent.textContent = `${progress}%`;
+                        progressText.innerHTML = `
+                            <i class="fas fa-file-archive"></i>
+                            正在打包文件...
+                            <span class="upload-count">${selectedFiles.length}个文件</span>
+                        `;
                     });
 
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.message || '上传失败');
-                    }
+                    // 创建文件名（使用当前时间戳）
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    originalFilenames = selectedFiles.map(f => f.name).join(', ');
+                    uploadFile = new File([zipBlob], `cloudpaste_${timestamp}.zip`, { 
+                        type: 'application/zip',
+                        lastModified: Date.now()
+                    });
+                }
 
-                    const result = await response.json();
-                    if (result.success) {
-                        // 创建结果显示
-                        const resultDiv = document.getElementById('result');
-                        const url = `${window.location.origin}${result.data.url}`;
-                        
-                        // 获取过期时间文本
-                        const durationText = {
-                            '1h': '1小时后过期',
-                            '1d': '1天后过期',
-                            '7d': '7天后过期',
-                            '30d': '30天后过期',
-                            'never': '永久有效'
-                        };
+                // 准备表单数据
+                const formData = new FormData();
+                formData.append('file', uploadFile);
+                formData.append('originalname', originalFilenames);
+                formData.append('password', filePassword.value);
+                formData.append('duration', fileDuration.value);
+                formData.append('customUrl', fileCustomUrl.value);
+                formData.append('maxViews', fileMaxViews.value);
 
-                        // 创建新的结果元素
-                        const newResultDiv = document.createElement('div');
-                        newResultDiv.innerHTML = `
-                            <div class="share-result success">
-                                <div class="result-header">
-                                    <i class="fas fa-check-circle"></i>
-                                    <h3>文件上传成功！</h3>
+                // 重置上传速度计算
+                uploadStartTime = Date.now();
+                lastUploadedBytes = 0;
+                lastUploadTime = uploadStartTime;
+                uploadSpeed = 0;
+
+                // 使用 XMLHttpRequest 上传
+                const response = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    
+                    xhr.upload.addEventListener('progress', (progressEvent) => {
+                        if (progressEvent.lengthComputable) {
+                            const currentTime = Date.now();
+                            const speed = calculateSpeed(progressEvent.loaded, currentTime);
+                            
+                            // 计算进度百分比
+                            const progress = (progressEvent.loaded / progressEvent.total) * 100;
+                            
+                            // 计算预计剩余时间
+                            const remainingBytes = progressEvent.total - progressEvent.loaded;
+                            const estimatedTimeSeconds = speed > 0 ? remainingBytes / speed : 0;
+                            
+                            // 更新进度显示
+                            progressBar.style.width = `${progress}%`;
+                            progressPercent.textContent = `${Math.round(progress)}%`;
+                            
+                            // 更新上传状态显示
+                            progressText.innerHTML = `
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                正在上传压缩包...
+                                <span class="upload-count">${selectedFiles.length}个文件</span>
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span class="upload-speed">${formatSpeed(speed)}</span>
+                                ${estimatedTimeSeconds > 0 ? `
+                                    <i class="far fa-clock"></i>
+                                    <span class="time-remaining">${Math.ceil(estimatedTimeSeconds)}s</span>
+                                ` : ''}
+                            `;
+                        }
+                    });
+
+                    xhr.addEventListener('load', () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve({
+                                ok: true,
+                                json: () => Promise.resolve(JSON.parse(xhr.responseText))
+                            });
+                        } else {
+                            reject(new Error(`HTTP Error: ${xhr.status}`));
+                        }
+                    });
+
+                    xhr.addEventListener('error', () => {
+                        reject(new Error('Network Error'));
+                    });
+
+                    xhr.open('POST', '/api/file');
+                    xhr.send(formData);
+                });
+
+                if (!response.ok) {
+                    throw new Error('上传失败');
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    // 创建结果显示
+                    const fileUploadDiv = document.getElementById('fileUpload');
+                    const resultDiv = fileUploadDiv.querySelector('.upload-result') || document.createElement('div');
+                    resultDiv.className = 'upload-result';
+                    const url = `${window.location.origin}${result.data.url}`;
+                    
+                    // 创建新的结果元素
+                    resultDiv.innerHTML = `
+                        <div class="share-result success">
+                            <div class="result-header" style="color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                                <h3 style="margin: 0;">文件上传成功！</h3>
+                            </div>
+                            <div class="content-info">
+                                <div class="info-item">
+                                    <i class="fas fa-file-archive"></i>
+                                    压缩包（${selectedFiles.length}个文件）
                                 </div>
-                                <div class="file-info">
-                                    <div class="info-item">
-                                        <i class="fas ${getFileIcon(file.type)}"></i>
-                                        <span>${file.name}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <i class="fas fa-weight"></i>
-                                        <span>${formatFileSize(file.size)}</span>
-                                    </div>
+                                <div class="info-item">
+                                    <i class="fas fa-weight"></i>
+                                    ${formatFileSize(uploadFile.size)}
                                 </div>
-                                <div class="share-settings">
-                                    <div class="setting-item">
-                                        <i class="far fa-clock"></i>
-                                        <span>${durationText[fileDuration.value]}</span>
-                                    </div>
-                                    ${filePassword.value ? `
-                                        <div class="setting-item">
-                                            <i class="fas fa-lock"></i>
-                                            <span>已设置密码保护</span>
-                                        </div>
-                                    ` : ''}
-                                    ${fileMaxViews.value > 0 ? `
-                                        <div class="setting-item">
-                                            <i class="far fa-eye"></i>
-                                            <span>限制访问 ${fileMaxViews.value} 次</span>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                                <div class="share-link-container">
-                                    <div class="link-group">
-                                        <input type="text" class="share-link" value="${url}" readonly>
-                                        <button class="copy-btn" onclick="copyToClipboard('${url}')" title="复制链接">
-                                            <i class="fas fa-copy"></i>
-                                        </button>
-                                    </div>
-                                    <div class="qr-group">
-                                        <button class="qr-btn" onclick="toggleQRCode('${url}')" title="显示二维码">
-                                            <i class="fas fa-qrcode"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="qr-code-container" style="display: none;">
-                                    <div class="qr-code"></div>
-                                    <button class="download-qr" title="下载二维码">
-                                        <i class="fas fa-download"></i>
-                                    </button>
+                                <div class="info-item time">
+                                    <i class="far fa-clock"></i>
+                                    ${fileDuration.value === 'never' ? '永久有效' : new Date(Date.now() + getDurationInMs(fileDuration.value)).toLocaleString()}
                                 </div>
                             </div>
-                        `;
+                            <div class="share-link-container">
+                                <input type="text" class="share-link" value="${url}" readonly>
+                                <button class="copy-btn" title="复制链接">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <button class="qr-btn" title="显示二维码">
+                                    <i class="fas fa-qrcode"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
 
-                        // 将新的结果添加到结果区域的顶部
-                        resultDiv.insertBefore(newResultDiv, resultDiv.firstChild);
-
-                        // 自动选中分享链接
-                        const shareLinkInput = newResultDiv.querySelector('.share-link');
-                        shareLinkInput.select();
-
-                        // 从选中的文件列表中移除已上传的文件
-                        selectedFiles = selectedFiles.filter(f => f !== file);
-                        const fileList = document.getElementById('fileList');
-                        const fileElement = Array.from(fileList.children).find(el => 
-                            el.querySelector('.file-name').textContent === file.name
-                        );
-                        if (fileElement) {
-                            fileElement.remove();
-                        }
-
-                        // 添加到存储列表
-                        displayStorageList(null, {
-                            type: 'file',
-                            filename: result.data.filename,
-                            mimetype: file.type,
-                            filesize: file.size
-                        });
-
-                        // 刷新分享统计
-                        fetchShareStats();
+                    // 将结果添加到文件上传界面
+                    if (!fileUploadDiv.contains(resultDiv)) {
+                        fileUploadDiv.appendChild(resultDiv);
                     }
+
+                    // 添加事件监听器
+                    const copyBtn = resultDiv.querySelector('.copy-btn');
+                    const qrBtn = resultDiv.querySelector('.qr-btn');
+                    const shareLinkInput = resultDiv.querySelector('.share-link');
+
+                    copyBtn.addEventListener('click', () => {
+                        copyBtn.setAttribute('data-copied', 'true');
+                        copyToClipboard(url);
+                    });
+                    qrBtn.addEventListener('click', () => toggleQRCode(url));
+
+                    // 自动选中分享链接
+                    shareLinkInput.select();
+
+                    // 清空已选文件列表
+                    selectedFiles = [];
+                    const fileList = document.getElementById('fileList');
+                    fileList.innerHTML = '';
+
+                    // 添加到存储列表
+                    displayStorageList(null, {
+                        type: 'file',
+                        filename: result.data.filename,
+                        mimetype: 'application/zip',
+                        filesize: uploadFile.size
+                    });
+
+                    // 刷新分享统计
+                    fetchShareStats();
                 }
 
                 // 更新上传区域可见性
@@ -1196,7 +1239,6 @@ async function fetchShareStats() {
     try {
         console.log('开始获取统计数据');
         const response = await fetch('/api/share/stats', {
-            // 添加 no-cache 确保获取最新数据
             cache: 'no-cache',
             headers: {
                 'Cache-Control': 'no-cache'
@@ -1210,44 +1252,71 @@ async function fetchShareStats() {
         const data = await response.json();
         console.log('获取到的统计数据:', data);
         
-        // 立即更新显示
-        const totalSharesEl = document.getElementById('totalShares');
-        const activeSharesEl = document.getElementById('activeShares');
-        const usedStorageEl = document.getElementById('usedStorage');
-        const totalStorageEl = document.getElementById('totalStorage');
-        const usagePercentEl = document.getElementById('usagePercent');
-        const usageProgressEl = document.querySelector('.usage-progress');
-        
-        // 只有在请求成功且有数据时才更新显示
         if (data.success && data.data) {
-            if (totalSharesEl) totalSharesEl.textContent = data.data.totalShares || 0;
-            if (activeSharesEl) activeSharesEl.textContent = data.data.activeShares || 0;
-            if (usedStorageEl) usedStorageEl.textContent = formatFileSize(data.data.usedStorage || 0);
-            if (totalStorageEl) totalStorageEl.textContent = formatFileSize(data.data.totalStorage || 0);
+            const stats = data.data;
+            const totalSharesEl = document.getElementById('totalShares');
+            const activeSharesEl = document.getElementById('activeShares');
+            const usedStorageEl = document.getElementById('usedStorage');
+            const totalStorageEl = document.getElementById('totalStorage');
+            const usagePercentEl = document.getElementById('usagePercent');
+            const usageProgressEl = document.querySelector('.usage-progress');
+            const storageUsageEl = document.querySelector('.storage-usage');
             
-            if (usagePercentEl && usageProgressEl && data.data.totalStorage > 0) {
-                const percent = ((data.data.usedStorage / data.data.totalStorage) * 100).toFixed(1);
-                usagePercentEl.textContent = `${percent}%`;
-                usageProgressEl.style.width = `${percent}%`;
+            if (totalSharesEl) totalSharesEl.textContent = stats.totalShares || 0;
+            if (activeSharesEl) activeSharesEl.textContent = stats.activeShares || 0;
+            if (usedStorageEl) usedStorageEl.textContent = formatFileSize(stats.usedStorage || 0);
+            if (totalStorageEl) totalStorageEl.textContent = formatFileSize(stats.totalStorage || 0);
+            if (usagePercentEl) usagePercentEl.textContent = stats.usagePercent + '%';
+            
+            // 更新进度条和状态样式
+            if (usageProgressEl) {
+                usageProgressEl.style.width = stats.usagePercent + '%';
+                usageProgressEl.className = 'usage-progress ' + (stats.storageStatus || '');
             }
             
-            // 更新缓存
-            localStorage.setItem('shareStats', JSON.stringify({
-                totalShares: data.data.totalShares || 0,
-                activeShares: data.data.activeShares || 0
-            }));
+            if (storageUsageEl) {
+                storageUsageEl.className = 'storage-usage ' + (stats.storageStatus || '');
+                
+                // 添加状态标签
+                const statusLabel = document.createElement('span');
+                statusLabel.className = 'storage-status ' + (stats.storageStatus || '');
+                statusLabel.textContent = stats.storageStatus === 'danger' ? '存储空间紧张' : 
+                                        stats.storageStatus === 'warning' ? '存储空间偏高' : '';
+                
+                const usageLabelEl = storageUsageEl.querySelector('.usage-label');
+                const existingStatus = usageLabelEl.querySelector('.storage-status');
+                if (existingStatus) {
+                    existingStatus.remove();
+                }
+                if (stats.storageStatus !== 'normal') {
+                    usageLabelEl.appendChild(statusLabel);
+                }
+            }
+            
+            // 缓存统计数据
+            localStorage.setItem('shareStats', JSON.stringify(stats));
         }
     } catch (error) {
         console.error('获取统计数据失败:', error);
         // 从缓存获取之前的统计数据
-        const cachedStats = JSON.parse(localStorage.getItem('shareStats') || '{"totalShares":0,"activeShares":0}');
+        const cachedStats = JSON.parse(localStorage.getItem('shareStats') || '{}');
         
         // 发生错误时使用缓存数据
-        const totalSharesEl = document.getElementById('totalShares');
-        const activeSharesEl = document.getElementById('activeShares');
+        const elements = {
+            totalShares: document.getElementById('totalShares'),
+            activeShares: document.getElementById('activeShares'),
+            usedStorage: document.getElementById('usedStorage'),
+            totalStorage: document.getElementById('totalStorage'),
+            usagePercent: document.getElementById('usagePercent')
+        };
         
-        if (totalSharesEl) totalSharesEl.textContent = cachedStats.totalShares;
-        if (activeSharesEl) activeSharesEl.textContent = cachedStats.activeShares;
+        Object.entries(elements).forEach(([key, el]) => {
+            if (el && cachedStats[key]) {
+                el.textContent = key.includes('Storage') ? 
+                    formatFileSize(cachedStats[key]) : 
+                    cachedStats[key];
+            }
+        });
     }
 }
 
@@ -1295,152 +1364,81 @@ async function fetchStorageList() {
 function displayStorageList(data, newItem = null) {
     const shareItems = document.getElementById('shareItems');
     
-    // 如果是新项插入，找到对应的列表并插入
+    // 如果是新项插入，直接添加到列表中
     if (newItem) {
-        if (newItem.type === 'text') {
-            // 找到 KV 列表
-            const kvList = shareItems.querySelector('.kv-list');
-            if (kvList) {
-                const newItemHtml = `
-                    <div class="storage-item" data-id="${newItem.id}">
-                        <div class="storage-item-icon">
-                            <i class="fas fa-key"></i>
-                        </div>
-                        <div class="storage-item-info">
-                            <div class="storage-item-name">${newItem.id}</div>
-                            <div class="storage-item-meta">
-                                <span><i class="fas fa-clock"></i> ${new Date(newItem.expiresAt).toLocaleString()}</span>
-                            </div>
-                        </div>
-                        <div class="storage-item-actions">
-                            <button class="storage-item-btn copy" title="复制">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                            <button class="storage-item-btn delete" title="删除" onclick="deleteStorageItem('${newItem.id}', 'kv')">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                // 插入到标题后面
-                const title = kvList.querySelector('.storage-title');
-                title.insertAdjacentHTML('afterend', newItemHtml);
-                
-                // 为新项添加事件监听器
-                const newElement = kvList.querySelector(`[data-id="${newItem.id}"]`);
-                if (newElement) {
-                    addStorageItemEventListeners(newElement);
-                }
-                return;
-            }
-        } else if (newItem.type === 'file') {
-            // 找到 R2 列表
-            const r2List = shareItems.querySelector('.r2-list');
-            if (r2List) {
-                const newItemHtml = `
-                    <div class="storage-item" data-id="${newItem.filename}">
-                        <div class="storage-item-icon">
-                            <i class="fas ${getFileIcon(newItem.mimetype)}"></i>
-                        </div>
-                        <div class="storage-item-info">
-                            <div class="storage-item-name">${newItem.filename}</div>
-                            <div class="storage-item-meta">
-                                <span><i class="fas fa-clock"></i> ${new Date().toLocaleString()}</span>
-                                <span><i class="fas fa-weight"></i> ${formatFileSize(newItem.filesize)}</span>
-                            </div>
-                        </div>
-                        <div class="storage-item-actions">
-                            <button class="storage-item-btn copy" title="复制">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                            <button class="storage-item-btn delete" title="删除" onclick="deleteStorageItem('${newItem.filename}', 'r2')">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                // 插入到标题后面
-                const title = r2List.querySelector('.storage-title');
-                title.insertAdjacentHTML('afterend', newItemHtml);
-                
-                // 为新项添加事件监听器
-                const newElement = r2List.querySelector(`[data-id="${newItem.filename}"]`);
-                if (newElement) {
-                    addStorageItemEventListeners(newElement);
-                }
-                return;
-            }
-        }
+        const newItemHtml = createShareItem(newItem);
+        shareItems.insertAdjacentHTML('afterbegin', newItemHtml);
+        return;
     }
 
-    // 如果不是插入新项或插入失败，则显示完整列表
+    // 显示完整列表
     const storageResults = document.createElement('div');
     storageResults.className = 'storage-results';
 
-    // KV 存储列表
-    const kvList = document.createElement('div');
-    kvList.className = 'kv-list';
-    kvList.innerHTML = `
-        <h3 class="storage-title"><i class="fas fa-database"></i> KV 存储</h3>
-        ${data.kv.map(item => `
-            <div class="storage-item" data-id="${item.name}">
-                <div class="storage-item-icon">
-                    <i class="fas fa-key"></i>
-                </div>
-                <div class="storage-item-info">
-                    <div class="storage-item-name">${item.name}</div>
-                    <div class="storage-item-meta">
-                        <span><i class="fas fa-clock"></i> ${new Date(item.expiration * 1000).toLocaleString()}</span>
-                    </div>
-                </div>
-                <div class="storage-item-actions">
-                    <button class="storage-item-btn copy" title="复制">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                    <button class="storage-item-btn delete" title="删除" onclick="deleteStorageItem('${item.name}', 'kv')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `).join('')}
-    `;
+    // 合并KV和R2的数据为统一的分享列表
+    const allShares = [
+        ...data.kv.map(item => ({
+            id: item.name,
+            type: 'text',
+            expiration: item.expiration * 1000,
+            size: 0
+        })),
+        ...data.r2.map(item => ({
+            id: item.Key,
+            type: 'file',
+            size: item.Size,
+            expiration: null
+        }))
+    ];
 
-    // R2 存储列表
-    const r2List = document.createElement('div');
-    r2List.className = 'r2-list';
-    r2List.innerHTML = `
-        <h3 class="storage-title"><i class="fas fa-cloud"></i> R2 存储</h3>
-        ${data.r2.map(item => `
-            <div class="storage-item" data-id="${item.Key}">
-                <div class="storage-item-icon">
-                    <i class="fas fa-file"></i>
-                </div>
-                <div class="storage-item-info">
-                    <div class="storage-item-name">${item.Key}</div>
-                    <div class="storage-item-meta">
-                        <span><i class="fas fa-clock"></i> ${new Date(item.LastModified).toLocaleString()}</span>
-                        <span><i class="fas fa-weight"></i> ${formatFileSize(item.Size)}</span>
-                    </div>
-                </div>
-                <div class="storage-item-actions">
-                    <button class="storage-item-btn copy" title="复制">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                    <button class="storage-item-btn delete" title="删除" onclick="deleteStorageItem('${item.Key}', 'r2')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `).join('')}
-    `;
+    // 按创建时间排序，最新的在前面
+    allShares.sort((a, b) => {
+        const timeA = a.expiration || Date.now();
+        const timeB = b.expiration || Date.now();
+        return timeB - timeA;
+    });
 
-    storageResults.appendChild(kvList);
-    storageResults.appendChild(r2List);
+    const sharesList = document.createElement('div');
+    sharesList.className = 'shares-list';
+    sharesList.innerHTML = allShares.map(item => createShareItem(item)).join('');
+
+    storageResults.appendChild(sharesList);
     shareItems.innerHTML = ''; // 清空现有内容
     shareItems.appendChild(storageResults);
 
     // 添加事件监听器
     addStorageItemEventListeners();
+}
+
+// 创建分享项
+function createShareItem(share) {
+    const isFile = share.type === 'file';
+    const icon = isFile ? 'fa-file' : 'fa-file-alt';
+    const expirationTime = share.expiration ? new Date(share.expiration).toLocaleString() : '永不过期';
+    const size = isFile ? formatFileSize(share.size) : '-';
+
+    return `
+        <div class="share-item" data-id="${share.id}">
+            <div class="share-item-icon">
+                <i class="fas ${icon}"></i>
+            </div>
+            <div class="share-item-info">
+                <div class="share-item-name">${share.id}</div>
+                <div class="share-item-meta">
+                    <span><i class="fas fa-clock"></i> ${expirationTime}</span>
+                    <span><i class="fas fa-weight"></i> ${size}</span>
+                </div>
+            </div>
+            <div class="share-item-actions">
+                <button class="share-item-btn copy" title="复制链接">
+                    <i class="fas fa-link"></i>
+                </button>
+                <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', '${isFile ? 'r2' : 'kv'}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
 }
 
 // 修改事件监听器添加函数
@@ -1462,8 +1460,18 @@ function addStorageItemEventListeners(container = document) {
 }
 
 // 在刷新列表时调用
-document.getElementById('refreshList').addEventListener('click', () => {
-    fetchStorageList();
+document.getElementById('refreshList').addEventListener('click', async (e) => {
+    const refreshBtn = e.currentTarget;
+    refreshBtn.classList.add('loading');
+    refreshBtn.disabled = true;
+    
+    try {
+        await fetchStorageList();
+        await fetchShareStats();
+    } finally {
+        refreshBtn.classList.remove('loading');
+        refreshBtn.disabled = false;
+    }
 });
 
 // 初始化时调用
@@ -1745,5 +1753,120 @@ function showConfirmDialog(message, warningText) {
                 close(false);
             }
         });
+    });
+}
+
+// 添加复制链接函数
+async function copyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        const copyBtn = document.querySelector('.copy-btn[data-copied="true"]');
+        if (copyBtn) {
+            const originalTitle = copyBtn.getAttribute('title');
+            copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+            copyBtn.setAttribute('title', '已复制！');
+            setTimeout(() => {
+                copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+                copyBtn.setAttribute('title', originalTitle);
+                copyBtn.removeAttribute('data-copied');
+            }, 2000);
+        }
+    } catch (err) {
+        console.error('复制失败:', err);
+        alert('复制失败，请手动复制');
+    }
+}
+
+// 添加显示二维码函数
+function toggleQRCode(url) {
+    const qrCodeContainer = document.createElement('div');
+    qrCodeContainer.className = 'qr-code-container';
+    qrCodeContainer.style.cssText = 'display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 1000;';
+    
+    qrCodeContainer.innerHTML = `
+        <div class="qr-code-modal" style="background: white; padding: 24px; border-radius: 8px; text-align: center; max-width: 90%; width: 320px; position: relative; transform: translateY(-20px); opacity: 0; transition: all 0.3s ease;">
+            <h3 style="margin: 0 0 16px 0; font-size: 18px;">扫描二维码访问</h3>
+            <div class="qr-code" id="tempQrCode" style="margin-bottom: 16px;"></div>
+            <div class="qr-code-actions" style="display: flex; gap: 8px; justify-content: center;">
+                <button class="qr-download-btn" id="tempDownloadQRCode" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-download"></i> 下载二维码
+                </button>
+                <button class="qr-close-btn" style="padding: 8px 16px; background: #e5e7eb; color: #374151; border: none; border-radius: 4px; cursor: pointer;">
+                    关闭
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(qrCodeContainer);
+    
+    // 生成二维码
+    QRCode.toDataURL(url, {
+        width: 250,
+        height: 250,
+        margin: 2,
+        color: {
+            dark: '#000000',
+            light: '#ffffff'
+        }
+    }, (err, qrUrl) => {
+        if (err) {
+            console.error('生成二维码失败:', err);
+            alert('生成二维码失败');
+            return;
+        }
+        
+        const img = document.createElement('img');
+        img.src = qrUrl;
+        img.alt = '分享链接二维码';
+        img.style.maxWidth = '100%';
+        document.getElementById('tempQrCode').appendChild(img);
+        
+        // 下载按钮事件
+        document.getElementById('tempDownloadQRCode').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = '分享链接二维码.png';
+            link.href = qrUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    });
+    
+    // 显示容器并添加动画
+    qrCodeContainer.style.display = 'flex';
+    setTimeout(() => {
+        const modal = qrCodeContainer.querySelector('.qr-code-modal');
+        modal.style.transform = 'translateY(0)';
+        modal.style.opacity = '1';
+    }, 10);
+    
+    // 关闭按钮事件
+    const closeBtn = qrCodeContainer.querySelector('.qr-close-btn');
+    closeBtn.addEventListener('click', closeQRCode);
+    
+    // 点击遮罩层关闭
+    qrCodeContainer.addEventListener('click', (e) => {
+        if (e.target === qrCodeContainer) {
+            closeQRCode();
+        }
+    });
+    
+    // 关闭函数
+    function closeQRCode() {
+        const modal = qrCodeContainer.querySelector('.qr-code-modal');
+        modal.style.transform = 'translateY(-20px)';
+        modal.style.opacity = '0';
+        setTimeout(() => {
+            qrCodeContainer.remove();
+        }, 300);
+    }
+    
+    // ESC键关闭
+    document.addEventListener('keydown', function escListener(e) {
+        if (e.key === 'Escape') {
+            document.removeEventListener('keydown', escListener);
+            closeQRCode();
+        }
     });
 } 

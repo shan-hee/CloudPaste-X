@@ -4,6 +4,7 @@ compatibility_date = "2024-01-09"
 
 [vars]
 ENVIRONMENT = "development"
+TOTAL_STORAGE_GB = "6"  # 总存储容量，单位GB
 
 [[kv_namespaces]]
 binding = "CLOUDPASTE_KV"

@@ -57,6 +57,19 @@ app.get('/api/share/stats', async (c) => {
     const totalSize = (r2List.objects || []).reduce((acc, obj) => acc + (obj.size || 0), 0)
     const totalShares = kvList.keys.length
     const activeShares = kvList.keys.filter(key => !key.metadata?.expiresAt || key.metadata.expiresAt > Date.now()).length
+    
+    // 从环境变量获取总容量（GB），默认6GB
+    const totalStorageGB = parseInt(env.TOTAL_STORAGE_GB) || 6
+    const totalStorage = totalStorageGB * 1024 * 1024 * 1024 // 转换为字节
+    const usagePercent = (totalSize / totalStorage) * 100
+    
+    // 计算存储空间状态
+    let storageStatus = 'normal'
+    if (usagePercent >= 90) {
+      storageStatus = 'danger'
+    } else if (usagePercent >= 70) {
+      storageStatus = 'warning'
+    }
 
     return c.json({
       success: true,
@@ -64,8 +77,9 @@ app.get('/api/share/stats', async (c) => {
         totalShares,
         activeShares,
         usedStorage: totalSize,
-        totalStorage: 6 * 1024 * 1024 * 1024, // 6GB限制
-        usagePercent: ((totalSize / (6 * 1024 * 1024 * 1024)) * 100).toFixed(2)
+        totalStorage,
+        usagePercent: usagePercent.toFixed(2),
+        storageStatus
       }
     })
   } catch (error) {
@@ -345,111 +359,142 @@ app.delete('/api/share/:id', async (c) => {
 
 // 获取分享内容
 app.get('/s/:id', async (c) => {
-  try {
-    const id = c.req.param('id')
-    console.log('获取分享内容:', id)
+    try {
+        const id = c.req.param('id');
+        const isApi = c.req.header('X-Requested-With') === 'XMLHttpRequest';
+        
+        // 如果不是API请求，重定向到share.html页面
+        if (!isApi) {
+            return c.redirect(`/share.html?id=${id}`);
+        }
+        
+        // 从 KV 中获取分享数据
+        const shareData = await c.env.CLOUDPASTE_KV.get(id, 'json');
+        if (!shareData) {
+            return c.json({
+                success: false,
+                message: '分享不存在或已过期'
+            }, 404);
+        }
 
-    // 检查请求类型
-    const acceptHeader = c.req.header('Accept') || '';
-    const isApiRequest = acceptHeader === 'application/json' || // 精确匹配 application/json
-                        c.req.header('X-Requested-With') === 'XMLHttpRequest'; // 检查是否为 XHR 请求
+        // 检查是否过期
+        if (shareData.expiresAt && Date.now() > shareData.expiresAt) {
+            return c.json({
+                success: false,
+                message: '分享已过期'
+            }, 410);
+        }
 
-    console.log('请求类型:', isApiRequest ? 'API请求' : '页面请求');
+        // 检查访问次数
+        if (shareData.maxViews > 0 && shareData.views >= shareData.maxViews) {
+            return c.json({
+                success: false,
+                message: '分享已达到最大访问次数'
+            }, 410);
+        }
 
-    // 如果不是 API 请求，返回 HTML 页面
-    if (!isApiRequest) {
-      return c.redirect(`/share.html?id=${id}`);
-    }
+        // 更新访问次数
+        shareData.views = (shareData.views || 0) + 1;
+        console.log('更新访问次数:', shareData.views);
+        await c.env.CLOUDPASTE_KV.put(id, JSON.stringify(shareData), {
+            expirationTtl: shareData.expiresAt ? Math.ceil((shareData.expiresAt - Date.now()) / 1000) : undefined
+        });
 
-    // 从 KV 中获取分享数据
-    console.log('从 KV 获取数据:', id);
-    const shareData = await c.env.CLOUDPASTE_KV.get(id, 'json')
-    if (!shareData) {
-      console.log('分享不存在:', id);
-      return c.json({
-        success: false,
-        message: '分享不存在或已过期'
-      }, 404)
-    }
+        // 根据分享类型返回不同的响应
+        switch (shareData.type) {
+            case 'text':
+                return c.json({
+                    success: true,
+                    data: {
+                        type: 'text',
+                        content: shareData.content,
+                        created: shareData.created,
+                        views: shareData.views,
+                        maxViews: shareData.maxViews,
+                        expiresAt: shareData.expiresAt,
+                        hasPassword: !!shareData.password
+                    }
+                });
 
-    console.log('获取到分享数据:', shareData);
+            case 'file':
+                return c.json({
+                    success: true,
+                    data: {
+                        type: 'file',
+                        filename: shareData.filename,
+                        originalname: shareData.originalname,
+                        size: shareData.filesize,
+                        mimeType: shareData.mimetype,
+                        created: shareData.created,
+                        views: shareData.views,
+                        maxViews: shareData.maxViews,
+                        expiresAt: shareData.expiresAt,
+                        hasPassword: !!shareData.password
+                    }
+                });
 
-    // 检查是否过期
-    if (shareData.expiresAt && shareData.expiresAt < Date.now()) {
-      console.log('分享已过期:', id);
-      return c.json({
-        success: false,
-        message: '分享已过期'
-      }, 404)
-    }
-
-    // 检查访问次数
-    if (shareData.maxViews > 0 && shareData.views >= shareData.maxViews) {
-      console.log('分享已达到最大访问次数:', id);
-      return c.json({
-        success: false,
-        message: '分享已达到最大访问次数'
-      }, 404)
-    }
-
-    // 增加访问次数
-    shareData.views += 1
-    console.log('更新访问次数:', shareData.views);
-    await c.env.CLOUDPASTE_KV.put(id, JSON.stringify(shareData), {
-      expirationTtl: shareData.expiresAt ? Math.ceil((shareData.expiresAt - Date.now()) / 1000) : undefined
-    })
-
-    // 根据分享类型返回不同的响应
-    switch (shareData.type) {
-      case 'text':
+            default:
+                console.log('不支持的分享类型:', shareData.type);
+                return c.json({
+                    success: false,
+                    message: '不支持的分享类型'
+                }, 400);
+        }
+    } catch (error) {
+        console.error('获取分享内容失败:', error);
         return c.json({
-          success: true,
-          data: {
-            type: 'text',
-            content: shareData.content,
-            created: shareData.created,
-            views: shareData.views,
-            expiresAt: shareData.expiresAt,
-            hasPassword: !!shareData.password
-          }
-        })
-
-      case 'file':
-        // 获取文件的签名 URL
-        const url = await c.env.CLOUDPASTE_BUCKET.createSignedUrl(shareData.filename, {
-          expirationTtl: 3600 // URL 有效期 1 小时
-        })
-        return c.json({
-          success: true,
-          data: {
-            type: 'file',
-            filename: shareData.filename,
-            filesize: shareData.filesize,
-            mimetype: shareData.mimetype,
-            url: url,
-            created: shareData.created,
-            views: shareData.views,
-            expiresAt: shareData.expiresAt,
-            hasPassword: !!shareData.password
-          }
-        })
-
-      default:
-        console.log('不支持的分享类型:', shareData.type);
-        return c.json({
-          success: false,
-          message: '不支持的分享类型'
-        }, 400)
+            success: false,
+            message: error.message || '获取分享内容失败'
+        }, 500);
     }
-  } catch (error) {
-    console.error('获取分享内容失败:', error);
-    console.error('错误堆栈:', error.stack);
-    return c.json({
-      success: false,
-      message: error.message || '获取分享内容失败'
-    }, 500)
-  }
-})
+});
+
+// 文件下载处理
+app.get('/s/:id/download', async (c) => {
+    try {
+        const id = c.req.param('id');
+        
+        // 从 KV 中获取分享数据
+        const shareData = await c.env.CLOUDPASTE_KV.get(id, 'json');
+        if (!shareData || shareData.type !== 'file') {
+            return c.json({
+                success: false,
+                message: '文件不存在或已过期'
+            }, 404);
+        }
+
+        // 检查是否过期
+        if (shareData.expiresAt && Date.now() > shareData.expiresAt) {
+            return c.json({
+                success: false,
+                message: '文件已过期'
+            }, 410);
+        }
+
+        // 从 R2 获取文件
+        const file = await c.env.CLOUDPASTE_BUCKET.get(id);
+        if (!file) {
+            return c.json({
+                success: false,
+                message: '文件不存在'
+            }, 404);
+        }
+
+        // 设置响应头
+        const headers = new Headers();
+        headers.set('Content-Type', shareData.mimetype || 'application/octet-stream');
+        headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(shareData.originalname || shareData.filename)}"`);
+
+        // 返回文件内容
+        return new Response(file.body, { headers });
+    } catch (error) {
+        console.error('下载文件失败:', error);
+        return c.json({
+            success: false,
+            message: error.message || '下载文件失败'
+        }, 500);
+    }
+});
 
 // 验证分享密码
 app.post('/s/:id/verify', async (c) => {
@@ -486,5 +531,92 @@ app.post('/s/:id/verify', async (c) => {
     }, 500)
   }
 })
+
+// 文件上传处理
+app.post('/api/file', async (c) => {
+    try {
+        const formData = await c.req.formData();
+        const file = formData.get('file');
+        const customUrl = formData.get('customUrl');
+        const password = formData.get('password');
+        const duration = formData.get('duration');
+        const maxViews = formData.get('maxViews');
+        const originalname = formData.get('originalname');  // 获取原始文件名
+
+        if (!file) {
+            return c.json({
+                success: false,
+                message: '未找到上传的文件'
+            }, 400);
+        }
+
+        // 生成唯一ID
+        const id = customUrl || crypto.randomUUID();
+        
+        // 计算过期时间
+        let expiresAt = null;
+        switch (duration) {
+            case '1h':
+                expiresAt = Date.now() + 60 * 60 * 1000;
+                break;
+            case '1d':
+                expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+                break;
+            case '7d':
+                expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+                break;
+            case '30d':
+                expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+                break;
+            // never 的情况下 expiresAt 保持为 null
+        }
+
+        // 上传文件到 R2
+        const arrayBuffer = await file.arrayBuffer();
+        await c.env.CLOUDPASTE_BUCKET.put(id, arrayBuffer, {
+            httpMetadata: {
+                contentType: file.type
+            }
+        });
+
+        // 准备存储的元数据
+        const shareData = {
+            id,
+            type: 'file',
+            filename: file.name,
+            originalname: originalname || file.name,  // 使用传入的原始文件名或默认为文件名
+            filesize: file.size,
+            mimetype: file.type,
+            password,
+            maxViews: maxViews ? parseInt(maxViews) : 0,
+            views: 0,
+            created: Date.now(),
+            expiresAt
+        };
+
+        // 存储元数据到 KV
+        await c.env.CLOUDPASTE_KV.put(id, JSON.stringify(shareData), {
+            expirationTtl: expiresAt ? Math.ceil((expiresAt - Date.now()) / 1000) : undefined
+        });
+
+        console.log('文件分享创建成功:', id);
+        
+        return c.json({
+            success: true,
+            data: {
+                id,
+                url: `/s/${id}`,
+                filename: file.name,
+                expiresAt
+            }
+        });
+    } catch (error) {
+        console.error('创建文件分享失败:', error);
+        return c.json({
+            success: false,
+            message: error.message || '创建文件分享失败'
+        }, 500);
+    }
+});
 
 export default app 

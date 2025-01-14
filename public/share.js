@@ -135,10 +135,43 @@ function updateMarkdownPreview(markdown) {
 // 预览模式按钮点击事件
 previewModeBtn.addEventListener('click', togglePreviewMode);
 
+// 文件类型图标映射
+const fileIconMap = {
+    'image': 'fa-file-image',
+    'video': 'fa-file-video',
+    'audio': 'fa-file-audio',
+    'pdf': 'fa-file-pdf',
+    'word': 'fa-file-word',
+    'excel': 'fa-file-excel',
+    'powerpoint': 'fa-file-powerpoint',
+    'archive': 'fa-file-archive',
+    'code': 'fa-file-code',
+    'text': 'fa-file-alt',
+    'default': 'fa-file'
+};
+
+// 获取文件类型图标
+function getFileIcon(mimeType) {
+    if (!mimeType) return fileIconMap.default;
+    
+    if (mimeType.startsWith('image/')) return fileIconMap.image;
+    if (mimeType.startsWith('video/')) return fileIconMap.video;
+    if (mimeType.startsWith('audio/')) return fileIconMap.audio;
+    if (mimeType === 'application/pdf') return fileIconMap.pdf;
+    if (mimeType.includes('word')) return fileIconMap.word;
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return fileIconMap.excel;
+    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return fileIconMap.powerpoint;
+    if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z')) return fileIconMap.archive;
+    if (mimeType.includes('javascript') || mimeType.includes('json') || mimeType.includes('html') || mimeType.includes('css')) return fileIconMap.code;
+    if (mimeType.startsWith('text/')) return fileIconMap.text;
+    
+    return fileIconMap.default;
+}
+
 // 加载分享内容
 async function loadShareContent() {
     try {
-        // 从 URL 参数中获取分享 ID
+        
         const urlParams = new URLSearchParams(window.location.search);
         const shareId = urlParams.get('id');
         
@@ -147,7 +180,6 @@ async function loadShareContent() {
             return;
         }
         
-        // 设置请求头，表明这是一个 API 请求
         const response = await fetch(`/s/${shareId}`, {
             headers: {
                 'Accept': 'application/json',
@@ -158,16 +190,52 @@ async function loadShareContent() {
         const data = await response.json();
         
         if (data.success) {
-            shareContent.value = data.data.content;
-            
-            // 初始化预览模式
-            initPreviewMode();
+            // 判断是否为文件
+            if (data.data.type === 'file') {
+                // 显示文件界面
+                document.getElementById('fileDisplay').style.display = 'flex';
+                document.getElementById('shareContentdiv').style.display = 'none';
+                document.getElementById('editBtn').style.display = 'none';
+                document.getElementById('previewModeBtn').style.display = 'none';
+                document.getElementById('formatSelect').style.display = 'none';
+                document.getElementById('downloadBtn').style.display = 'none';
+                document.getElementById('copyBtn').style.display = 'none';
+                // 隐藏二维码按钮
+                const qrButton = document.querySelector('.qr-btn');
+                if (qrButton) {
+                    qrButton.style.display = 'none';
+                }               
+                // 更新文件信息
+                const fileName = document.getElementById('fileName');
+                fileName.textContent = data.data.originalname || data.data.filename; // 优先显示原始文件名
+                fileName.title = data.data.originalname || data.data.filename; // 添加悬停提示
+                document.getElementById('fileSize').textContent = formatFileSize(data.data.size);
+                
+                // 更新文件图标
+                const fileIcon = document.querySelector('.file-icon-container i');
+                fileIcon.className = `fas ${getFileIcon(data.data.mimeType)} fa-4x`;
+                
+                // 设置下载按钮事件
+                const downloadBtn = document.getElementById('downloadFileBtn');
+                downloadBtn.onclick = () => window.location.href = `/s/${shareId}/download`;
+            } else {
+                // 文本内容显示
+                document.getElementById('fileDisplay').style.display = 'none';
+                document.getElementById('shareContentdiv').style.display = 'block';
+                document.getElementById('editBtn').style.display = 'inline-flex';
+                document.getElementById('previewModeBtn').style.display = 'inline-flex';
+                document.getElementById('formatSelect').style.display = 'inline-block';
+                document.getElementById('downloadBtn').style.display = 'inline-flex';
+                shareContent.value = data.data.content;
+                
+                // 初始化预览模式
+                initPreviewMode();
+            }
             
             // 更新信息
             document.getElementById('createTime').textContent = formatDate(data.data.created);
             document.getElementById('viewCount').value = data.data.maxViews || 0;
             
-            // 设置过期时间
             const expireTimeInput = document.getElementById('expireTime');
             if (data.data.expiresAt) {
                 const expireDate = new Date(data.data.expiresAt);
@@ -572,6 +640,83 @@ function toggleFullscreen() {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && editMode.classList.contains('fullscreen')) {
         toggleFullscreen();
+    }
+});
+
+// 导出功能
+document.getElementById('downloadBtn').addEventListener('click', async () => {
+    const format = document.getElementById('formatSelect').value;
+    const content = document.getElementById('shareContent').value;
+    const filename = `cloudpaste_${new Date().toISOString().slice(0,10)}`;
+
+    if (format === 'pdf') {
+        try {
+            // 创建PDF文档
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // 设置中文字体
+            doc.setFont('chinese', 'normal');
+            
+            // 分割内容为多行
+            const lines = doc.splitTextToSize(content, 180);
+            
+            // 设置初始y位置
+            let y = 20;
+            const lineHeight = 7;
+            
+            // 添加内容到PDF
+            doc.setFontSize(12);
+            
+            // 分页处理
+            for (let i = 0; i < lines.length; i++) {
+                if (y > 280) {  // 如果即将超出页面
+                    doc.addPage();  // 添加新页面
+                    y = 20;  // 重置y坐标
+                }
+                doc.text(15, y, lines[i]);
+                y += lineHeight;
+            }
+            
+            // 下载PDF
+            doc.save(`${filename}.pdf`);
+            showToast('PDF导出成功');
+        } catch (error) {
+            console.error('导出PDF失败:', error);
+            showToast('导出PDF失败，请稍后重试', 3000);
+        }
+    } else if (format === 'png') {
+        try {
+            // 创建临时容器
+            const container = document.createElement('div');
+            container.style.position = 'absolute';
+            container.style.left = '-9999px';
+            container.style.top = '0';
+            container.style.width = '800px';
+            container.style.background = 'white';
+            container.style.padding = '20px';
+            container.style.whiteSpace = 'pre-wrap';
+            container.innerHTML = marked.parse(content);
+            document.body.appendChild(container);
+
+            // 使用html2canvas转换为图片
+            const canvas = await html2canvas(container, {
+                scale: 2,
+                backgroundColor: 'white'
+            });
+            
+            // 移除临时容器
+            document.body.removeChild(container);
+
+            // 创建下载链接
+            const link = document.createElement('a');
+            link.download = `${filename}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (error) {
+            console.error('导出PNG失败:', error);
+            showToast('导出PNG失败，请稍后重试', 3000);
+        }
     }
 });
 

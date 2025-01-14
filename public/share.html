@@ -15,6 +15,11 @@
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js"></script>
     <!-- 使用CDN加载QRCode库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- 添加html2canvas库 -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- 添加jsPDF库及中文字体支持 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-font@1.0.7/fonts/chinese.min.js"></script>
     <!-- 内联定义二维码相关函数 -->
     <script>
         function toggleQRCode(url) {
@@ -147,6 +152,21 @@
             </div>
             
             <div class="card-content">
+                <!-- 文件显示界面 -->
+                <div class="file-display" id="fileDisplay" style="display: none;">
+                    <div class="file-icon-container">
+                        <i class="fas fa-file fa-4x"></i>
+                        <span class="file-name" id="fileName">文件名称</span>
+                        <span class="file-size" id="fileSize">文件大小</span>
+                    </div>
+                    <div class="file-actions">
+                        <button class="action-btn" id="downloadFileBtn">
+                            <i class="fas fa-download"></i>
+                            下载文件
+                        </button>
+                    </div>
+                </div>
+
                 <div class="content-wrapper" id="shareContentdiv">
                     <textarea class="share-content" id="shareContent" readonly></textarea>
                 </div>

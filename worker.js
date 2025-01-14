@@ -9,7 +9,11 @@ const BOOKMARK_CONSTANTS = {
 const CONFIG = {
     FILE: {
         MAX_SIZE: 98 * 1024 * 1024,
-        MAX_TOTAL_STORAGE: 6 * 1024 * 1024 * 1024,
+        get MAX_TOTAL_STORAGE() {
+            // 从环境变量获取总容量（GB），默认6GB
+            const totalStorageGB = parseInt(process.env.TOTAL_STORAGE_GB) || 6;
+            return totalStorageGB * 1024 * 1024 * 1024; // 转换为字节
+        },
         MAX_BOOKMARK_SIZE: BOOKMARK_CONSTANTS.MAX_SIZE
     },
     DURATIONS: {

@@ -1126,3 +1126,85 @@
         background: #f5f5f5;
     }
 }
+
+/* 文件显示界面样式 */
+.file-display {
+    padding: 40px;
+    text-align: center;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+}
+
+.file-icon-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.file-icon-container i {
+    font-size: 64px;
+    color: var(--primary-color);
+    background: rgba(78, 149, 255, 0.1);
+    padding: 30px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.file-icon-container:hover i {
+    transform: scale(1.05);
+    background: rgba(78, 149, 255, 0.15);
+}
+
+.file-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+    word-break: break-all;
+    max-width: 400px;
+}
+
+.file-size {
+    font-size: 14px;
+    color: var(--secondary-color);
+}
+
+.file-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.file-actions .action-btn {
+    background: var(--primary-color);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.file-actions .action-btn:hover {
+    background: #3a87ff;
+    transform: translateY(-2px);
+}
+
+/* 暗色主题样式 */
+[data-theme='dark'] .file-icon-container i {
+    background: rgba(78, 149, 255, 0.15);
+}
+
+[data-theme='dark'] .file-name {
+    color: var(--text-color);
+}
+
+[data-theme='dark'] .file-size {
+    color: var(--secondary-color);
+}

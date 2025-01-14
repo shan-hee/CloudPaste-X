@@ -1037,12 +1037,12 @@
     }
     
     [data-theme='auto'] #editBtn.editing ~ .info-group #expireTime {
-        background-color: var(--container-bg);
-        border-color: var(--border-color);
+        background-color: white;
+        border-color: white;
     }
     [data-theme='auto'] .edit-actions {
-        background: var(--container-bg);
-        border-color: var(--border-color);
+        background: white;
+        border-color: white;
     }
     [data-theme='auto'] .cancel-btn {
         background: rgba(255, 255, 255, 0.1) !important;

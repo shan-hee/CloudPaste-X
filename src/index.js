@@ -12,40 +12,74 @@ app.use('/', serveStatic({ root: './' }))
 app.use('/*', serveStatic({ root: './' }))
 
 // 获取存储列表
-app.get('/api/share/storage', async (c) => {
-  try {
-    const env = c.env
-    const kvList = await env.CLOUDPASTE_KV.list()
-    const r2List = await env.CLOUDPASTE_BUCKET.list()
+app.get('/api/file', async (c) => {
+    try {
+        // 获取所有KV存储的键
+        const kvList = await c.env.CLOUDPASTE_KV.list();
+        const r2List = await c.env.CLOUDPASTE_BUCKET.list();
 
-    // 转换数据格式以匹配前端期望
-    const formattedKvList = kvList.keys.map(key => ({
-      name: key.name,
-      expiration: key.expiration || Math.floor(Date.now() / 1000) + 86400 // 如果没有过期时间，默认24小时
-    }))
+        console.log('KV列表:', kvList.keys);
 
-    const formattedR2List = (r2List.objects || []).map(obj => ({
-      filename: obj.key,
-      filesize: obj.size,
-      mimetype: obj.httpMetadata?.contentType || 'application/octet-stream',
-      uploaded: obj.uploaded
-    }))
+        // 获取所有KV值
+        const kvValues = await Promise.all(
+            kvList.keys.map(async key => {
+                const value = await c.env.CLOUDPASTE_KV.get(key.name, 'json');
+                console.log('KV值:', key.name, value);
+                return { ...value, name: key.name };
+            })
+        );
 
-    return c.json({
-      success: true,
-      data: {
-        kv: formattedKvList,
-        r2: formattedR2List
-      }
-    })
-  } catch (error) {
-    console.error('获取存储列表失败:', error)
-    return c.json({
-      success: false,
-      message: error.message || '获取存储列表失败'
-    }, 500)
-  }
-})
+        // 过滤和处理KV数据（文本分享）
+        const kvData = kvValues
+            .filter(item => {
+                console.log('过滤项:', item);
+                return item && 
+                       item.type === 'text' && 
+                       !item.name?.startsWith('temp_') &&
+                       (!item.expiresAt || item.expiresAt > Date.now());
+            })
+            .map(item => ({
+                id: item.id || item.name,
+                type: 'text',
+                content: item.content,
+                expiration: item.expiresAt,
+                createdAt: item.createdAt || item.created || Date.now()
+            }));
+
+        console.log('处理后的文本分享:', kvData);
+
+        // 处理R2数据（文件分享）
+        const r2Data = (r2List.objects || []).map(obj => {
+            // 尝试从KV数据中找到对应的元数据
+            const metadata = kvValues.find(kv => kv.id === obj.key);
+            return {
+                id: obj.key,
+                filename: obj.key,
+                filesize: obj.size,
+                originalname: metadata?.originalname || obj.key,
+                type: 'file',
+                expiration: metadata?.expiresAt,
+                createdAt: metadata?.createdAt || metadata?.created || Date.now()
+            };
+        }).filter(item => !item.expiration || item.expiration > Date.now());
+
+        console.log('处理后的文件分享:', r2Data);
+
+        return c.json({
+            success: true,
+            data: {
+                kv: kvData,
+                r2: r2Data
+            }
+        });
+    } catch (error) {
+        console.error('获取分享列表失败:', error);
+        return c.json({
+            success: false,
+            message: error.message || '获取分享列表失败'
+        }, 500);
+    }
+});
 
 // 获取统计信息
 app.get('/api/share/stats', async (c) => {
@@ -54,9 +88,62 @@ app.get('/api/share/stats', async (c) => {
     const kvList = await env.CLOUDPASTE_KV.list()
     const r2List = await env.CLOUDPASTE_BUCKET.list()
 
-    const totalSize = (r2List.objects || []).reduce((acc, obj) => acc + (obj.size || 0), 0)
-    const totalShares = kvList.keys.length
-    const activeShares = kvList.keys.filter(key => !key.metadata?.expiresAt || key.metadata.expiresAt > Date.now()).length
+    console.log('原始KV列表:', kvList.keys)
+    console.log('原始R2列表:', r2List.objects)
+
+    // 获取所有KV值
+    const kvValues = await Promise.all(
+      kvList.keys.map(async key => {
+        const value = await env.CLOUDPASTE_KV.get(key.name, 'json')
+        console.log('KV值:', key.name, value)
+        return { ...value, name: key.name }
+      })
+    )
+
+    console.log('所有KV值:', kvValues)
+
+    // 过滤有效的文本分享
+    const validTextShares = kvValues.filter(item => {
+      const isValid = item && 
+        item.type === 'text' && 
+        !item.name?.startsWith('temp_') &&
+        (!item.expiresAt || item.expiresAt > Date.now())
+      console.log('文本分享过滤:', item?.name, isValid)
+      return isValid
+    })
+
+    console.log('有效文本分享:', validTextShares)
+
+    // 过滤有效的文件分享
+    const validFileShares = kvValues.filter(item => {
+      const isValid = item && 
+        item.type === 'file' && 
+        !item.name?.startsWith('temp_') &&
+        (!item.expiresAt || item.expiresAt > Date.now())
+      console.log('文件分享过滤:', item?.name, isValid)
+      return isValid
+    })
+
+    console.log('有效文件分享:', validFileShares)
+
+    // 计算总分享数和活跃分享数
+    const totalShares = validTextShares.length + validFileShares.length
+    const activeShares = totalShares // 因为上面已经过滤了过期的，所以这里相同
+
+    // 计算已用存储空间
+    const textSize = validTextShares.reduce((acc, item) => {
+      const size = item.content ? new TextEncoder().encode(item.content).length : 0
+      console.log('文本大小:', item.name, size)
+      return acc + size
+    }, 0)
+
+    const fileSize = validFileShares.reduce((acc, item) => {
+      const size = item.filesize || 0
+      console.log('文件大小:', item.name, size)
+      return acc + size
+    }, 0)
+
+    const totalSize = textSize + fileSize
     
     // 从环境变量获取总容量（GB），默认6GB
     const totalStorageGB = parseInt(env.TOTAL_STORAGE_GB) || 6
@@ -70,6 +157,18 @@ app.get('/api/share/stats', async (c) => {
     } else if (usagePercent >= 70) {
       storageStatus = 'warning'
     }
+
+    console.log('最终统计信息:', {
+      totalShares,
+      activeShares,
+      textShares: validTextShares.length,
+      fileShares: validFileShares.length,
+      textSize,
+      fileSize,
+      totalSize,
+      usagePercent,
+      storageStatus
+    })
 
     return c.json({
       success: true,
@@ -135,6 +234,7 @@ app.post('/api/text', async (c) => {
       maxViews: maxViews || 0,
       views: 0,
       created: Date.now(),
+      createdAt: Date.now(),  // 添加 createdAt 字段
       expiresAt
     }
 
@@ -150,7 +250,8 @@ app.post('/api/text', async (c) => {
       data: {
         id,
         url: `/s/${id}`,
-        expiresAt
+        expiresAt,
+        createdAt: shareData.createdAt  // 返回创建时间
       }
     })
   } catch (error) {
@@ -163,31 +264,94 @@ app.post('/api/text', async (c) => {
 })
 
 // 文件上传处理
-app.post('/upload', async (c) => {
-  try {
-    const formData = await c.req.formData()
-    const file = formData.get('file')
-    const customUrl = formData.get('customUrl')
-    const password = formData.get('password')
-    const duration = formData.get('duration')
-    const maxViews = formData.get('maxViews')
+app.post('/api/file', async (c) => {
+    try {
+        const formData = await c.req.formData();
+        const file = formData.get('file');
+        const customUrl = formData.get('customUrl');
+        const password = formData.get('password');
+        const duration = formData.get('duration');
+        const maxViews = formData.get('maxViews');
+        const originalname = formData.get('originalname');  // 获取原始文件名
 
-    // TODO: 处理文件上传逻辑
-    // 1. 验证文件
-    // 2. 上传到R2存储
-    // 3. 保存元数据到KV
-    
-    return c.json({
-      success: true,
-      url: `https://example.com/${customUrl || 'generated-url'}`
-    })
-  } catch (error) {
-    return c.json({
-      success: false,
-      error: error.message
-    }, 500)
-  }
-})
+        if (!file) {
+            return c.json({
+                success: false,
+                message: '未找到上传的文件'
+            }, 400);
+        }
+
+        // 生成唯一ID
+        const id = customUrl || crypto.randomUUID();
+        
+        // 计算过期时间
+        let expiresAt = null;
+        switch (duration) {
+            case '1h':
+                expiresAt = Date.now() + 60 * 60 * 1000;
+                break;
+            case '1d':
+                expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+                break;
+            case '7d':
+                expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+                break;
+            case '30d':
+                expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+                break;
+            // never 的情况下 expiresAt 保持为 null
+        }
+
+        // 上传文件到 R2
+        const arrayBuffer = await file.arrayBuffer();
+        await c.env.CLOUDPASTE_BUCKET.put(id, arrayBuffer, {
+            httpMetadata: {
+                contentType: file.type
+            }
+        });
+
+        // 准备存储的元数据
+        const shareData = {
+            id,
+            type: 'file',
+            filename: file.name,
+            originalname: originalname || file.name,  // 使用传入的原始文件名或默认为文件名
+            filesize: file.size,
+            mimetype: file.type,
+            password,
+            maxViews: maxViews ? parseInt(maxViews) : 0,
+            views: 0,
+            created: Date.now(),
+            createdAt: Date.now(),  // 添加 createdAt 字段
+            expiresAt,
+            isManualUpload: true  // 添加手动上传标记
+        };
+
+        // 存储元数据到 KV
+        await c.env.CLOUDPASTE_KV.put(id, JSON.stringify(shareData), {
+            expirationTtl: expiresAt ? Math.ceil((expiresAt - Date.now()) / 1000) : undefined
+        });
+
+        console.log('文件分享创建成功:', id);
+        
+        return c.json({
+            success: true,
+            data: {
+                id,
+                url: `/s/${id}`,
+                filename: file.name,
+                expiresAt,
+                createdAt: shareData.createdAt  // 返回创建时间
+            }
+        });
+    } catch (error) {
+        console.error('创建文件分享失败:', error);
+        return c.json({
+            success: false,
+            message: error.message || '创建文件分享失败'
+        }, 500);
+    }
+});
 
 // 书签上传处理
 app.post('/bookmark', async (c) => {
@@ -328,10 +492,10 @@ app.delete('/api/share/:id', async (c) => {
     console.log('找到分享:', shareData)
 
     // 如果是文件类型，从 R2 中删除文件
-    if (shareData.type === 'file' && shareData.filename) {
-      console.log('删除 R2 文件:', shareData.filename)
+    if (shareData.type === 'file') {
+      console.log('删除 R2 文件:', id)
       try {
-        await c.env.CLOUDPASTE_BUCKET.delete(shareData.filename)
+        await c.env.CLOUDPASTE_BUCKET.delete(id)
         console.log('R2 文件删除成功')
       } catch (err) {
         console.error('删除 R2 文件失败:', err)
@@ -531,93 +695,5 @@ app.post('/s/:id/verify', async (c) => {
     }, 500)
   }
 })
-
-// 文件上传处理
-app.post('/api/file', async (c) => {
-    try {
-        const formData = await c.req.formData();
-        const file = formData.get('file');
-        const customUrl = formData.get('customUrl');
-        const password = formData.get('password');
-        const duration = formData.get('duration');
-        const maxViews = formData.get('maxViews');
-        const originalname = formData.get('originalname');  // 获取原始文件名
-
-        if (!file) {
-            return c.json({
-                success: false,
-                message: '未找到上传的文件'
-            }, 400);
-        }
-
-        // 生成唯一ID
-        const id = customUrl || crypto.randomUUID();
-        
-        // 计算过期时间
-        let expiresAt = null;
-        switch (duration) {
-            case '1h':
-                expiresAt = Date.now() + 60 * 60 * 1000;
-                break;
-            case '1d':
-                expiresAt = Date.now() + 24 * 60 * 60 * 1000;
-                break;
-            case '7d':
-                expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
-                break;
-            case '30d':
-                expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-                break;
-            // never 的情况下 expiresAt 保持为 null
-        }
-
-        // 上传文件到 R2
-        const arrayBuffer = await file.arrayBuffer();
-        await c.env.CLOUDPASTE_BUCKET.put(id, arrayBuffer, {
-            httpMetadata: {
-                contentType: file.type
-            }
-        });
-
-        // 准备存储的元数据
-        const shareData = {
-            id,
-            type: 'file',
-            filename: file.name,
-            originalname: originalname || file.name,  // 使用传入的原始文件名或默认为文件名
-            filesize: file.size,
-            mimetype: file.type,
-            password,
-            maxViews: maxViews ? parseInt(maxViews) : 0,
-            views: 0,
-            created: Date.now(),
-            expiresAt,
-            isManualUpload: true  // 添加手动上传标记
-        };
-
-        // 存储元数据到 KV
-        await c.env.CLOUDPASTE_KV.put(id, JSON.stringify(shareData), {
-            expirationTtl: expiresAt ? Math.ceil((expiresAt - Date.now()) / 1000) : undefined
-        });
-
-        console.log('文件分享创建成功:', id);
-        
-        return c.json({
-            success: true,
-            data: {
-                id,
-                url: `/s/${id}`,
-                filename: file.name,
-                expiresAt
-            }
-        });
-    } catch (error) {
-        console.error('创建文件分享失败:', error);
-        return c.json({
-            success: false,
-            message: error.message || '创建文件分享失败'
-        }, 500);
-    }
-});
 
 export default app 

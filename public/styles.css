@@ -42,6 +42,22 @@
         --border-color: #2d2d2d;
         --text-color: #ecf0f1;
         --container-bg: #2d2d2d;
+        .switch-card {
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .switch-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .switch-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
     }
 }
 
@@ -1966,7 +1982,7 @@ body {
     gap: 15px;
     margin: 20px;
     padding: 0;
-    background: var(--background-color);
+    background: transparent;
     border-radius: 16px;
 }
 
@@ -1982,9 +1998,21 @@ body {
     transition: all 0.3s ease;
 }
 
+[data-theme="dark"] .switch-card {
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .switch-card:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .switch-card:hover {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .switch-card i {
@@ -2523,5 +2551,194 @@ input:disabled + .slider {
     background-color: rgba(255, 255, 255, 0.9);
     color: #333;
     backdrop-filter: blur(4px);
+}
+
+/* 分享项样式 */
+.share-item {
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+/* 文本分享项的背景 */
+.share-item[data-type="text"] {
+    background: linear-gradient(135deg, 
+        var(--container-bg) 0%, 
+        rgba(74, 144, 226, 0.12) 100%
+    );
+    border-left: 3px solid rgba(74, 144, 226, 0.3);
+}
+
+/* 文件分享项的背景 */
+.share-item[data-type="file"] {
+    background: linear-gradient(135deg, 
+        var(--container-bg) 0%, 
+        rgba(39, 174, 96, 0.12) 100%
+    );
+    border-left: 3px solid rgba(39, 174, 96, 0.3);
+}
+
+.share-item-info {
+    flex: 1;
+    min-width: 0;
+    padding-right: 16px;
+}
+
+.share-item-line {
+    font-size: 14px;
+    color: var(--text-color);
+    margin: 6px 0;
+    line-height: 1.6;
+    display: flex;
+    align-items: center;
+}
+
+.share-item-line:first-child {
+    margin-top: 0;
+}
+
+.share-item-line:last-child {
+    margin-bottom: 0;
+}
+
+/* 移除图标相关样式 */
+.share-item-line::before {
+    display: none;
+}
+
+.share-item-line:nth-child(1)::before,
+.share-item-line:nth-child(2)::before,
+.share-item-line:nth-child(3)::before,
+.share-item[data-type="file"] .share-item-line:nth-child(4)::before {
+    display: none;
+}
+
+/* 悬停效果 */
+.share-item[data-type="text"]:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.15);
+    background: linear-gradient(135deg, 
+        var(--container-bg) 0%, 
+        rgba(74, 144, 226, 0.18) 100%
+    );
+    transform: translateY(-1px);
+}
+
+.share-item[data-type="file"]:hover {
+    border-color: #27ae60;
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.15);
+    background: linear-gradient(135deg, 
+        var(--container-bg) 0%, 
+        rgba(39, 174, 96, 0.18) 100%
+    );
+    transform: translateY(-1px);
+}
+
+/* 暗色主题适配 */
+[data-theme="dark"] .share-item[data-type="text"] {
+    background: linear-gradient(135deg, 
+        var(--container-bg) 0%, 
+        rgba(74, 144, 226, 0.15) 100%
+    );
+    border-left: 3px solid rgba(74, 144, 226, 0.4);
+}
+
+[data-theme="dark"] .share-item[data-type="file"] {
+    background: linear-gradient(135deg, 
+        var(--container-bg) 0%, 
+        rgba(39, 174, 96, 0.15) 100%
+    );
+    border-left: 3px solid rgba(39, 174, 96, 0.4);
+}
+
+[data-theme="dark"] .share-item[data-type="text"]:hover {
+    background: linear-gradient(135deg, 
+        var(--container-bg) 0%, 
+        rgba(74, 144, 226, 0.22) 100%
+    );
+}
+
+[data-theme="dark"] .share-item[data-type="file"]:hover {
+    background: linear-gradient(135deg, 
+        var(--container-bg) 0%, 
+        rgba(39, 174, 96, 0.22) 100%
+    );
+}
+
+.share-item-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color);
+    transition: all 0.2s ease;
+}
+
+.share-item-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(74, 144, 226, 0.05);
+}
+
+.share-item-btn.delete:hover {
+    border-color: #dc2626;
+    color: #dc2626;
+    background: rgba(220, 38, 38, 0.05);
+}
+
+.share-item-btn i {
+    font-size: 16px;
+    transition: transform 0.2s ease;
+}
+
+.share-item-btn:hover i {
+    transform: scale(1.1);
+}
+
+.share-item.deleting {
+    opacity: 0.5;
+    pointer-events: none;
+    transform: translateX(10px);
+}
+
+/* 暗色主题适配 */
+[data-theme="dark"] .share-item {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .share-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .share-item-btn {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .share-item-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.share-id {
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.share-id:hover {
+    color: var(--accent-color);
 }
 

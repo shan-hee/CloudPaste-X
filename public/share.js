@@ -877,7 +877,7 @@ async function fetchShareStats() {
     try {
         console.log('开始获取统计数据');
         // 获取存储列表数据
-        const storageResponse = await fetch('/api/share/storage');
+        const storageResponse = await fetch('/api/file');
         if (!storageResponse.ok) {
             throw new Error('获取存储列表失败');
         }

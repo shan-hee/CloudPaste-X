@@ -1,16 +1,11 @@
-// 将这段代码放在文件的最开始位置
-console.log('app.js loaded'); // 验证脚本是否加载
-
 // 全局变量
 let selectedFiles = []; // 存储选中的文件
 
 // 初始化所有功能
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM加载完成，初始化功能');
     
     // 优先获取统计数据
     fetchShareStats().then(() => {
-        console.log('统计数据已更新');
     }).catch(error => {
         console.error('获取统计数据失败:', error);
     });
@@ -43,9 +38,7 @@ function initTextSubmit() {
     const maxViewsSpan = shareResult.querySelector('.max-views');
 
     if (submitTextBtn) {
-        console.log('找到提交按钮');
         submitTextBtn.addEventListener('click', async () => {
-            console.log('点击提交按钮');
             try {
                 const textContent = document.getElementById('textContent').value;
                 const password = document.getElementById('textPassword').value;
@@ -443,7 +436,6 @@ function initFileUpload() {
         return;
     }
 
-    console.log('初始化文件上传功能');
 
     // 确保上传区域可见
     uploadArea.style.display = 'flex';
@@ -454,7 +446,6 @@ function initFileUpload() {
 
     // 处理文件选择
     fileInput.addEventListener('change', (event) => {
-        console.log('文件选择事件触发');
         const files = event.target.files;
         addFilesToList(Array.from(files));
     });
@@ -482,7 +473,6 @@ function initFileUpload() {
     });
 
     function addFilesToList(files) {
-        console.log('添加文件到列表:', files);
         files.forEach(file => {
             // 检查是否已经存在同名文件
             if (!selectedFiles.some(f => f.name === file.name)) {
@@ -490,7 +480,7 @@ function initFileUpload() {
                 const filePreview = createFilePreview(file);
                 fileList.appendChild(filePreview);
             } else {
-                console.log('文件已存在:', file.name);
+                console.log('文件已存在:', file.name)
             }
         });
         updateUploadAreaVisibility();
@@ -754,31 +744,48 @@ function createShareItem(share) {
     const isFile = share.type === 'file';
     const icon = isFile ? getFileIconByName(share.originalname || share.filename || share.id) : 'fa-file-alt';
     const expirationTime = share.expiration ? new Date(share.expiration).toLocaleString() : '永不过期';
+    const createdTime = share.createdAt ? new Date(share.createdAt).toLocaleString() : '未知时间';
     const size = isFile ? formatFileSize(share.size) : '-';
     const displayId = (share.id || '').split('-')[0];
 
-    return `
-        <div class="share-item" data-id="${share.id}" data-type="${isFile ? 'file' : 'text'}">
-            <div class="share-item-icon">
-                <i class="fas ${icon}"></i>
+    if (isFile) {
+        return `
+            <div class="share-item" data-id="${share.id}" data-type="file">
+                <div class="share-item-info">
+                    <div class="share-item-line">ID: <span class="share-id" title="点击查看分享" onclick="window.location.href='/s/${share.id}'">${displayId}</span></div>
+                    <div class="share-item-line">文件名: ${share.originalname || share.filename}</div>
+                    <div class="share-item-line">创建时间: ${createdTime}</div>
+                    <div class="share-item-line">过期时间: ${expirationTime}</div>
+                </div>
+                <div class="share-item-actions">
+                    <button class="share-item-btn copy" title="复制链接">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', 'r2')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
-            <div class="share-item-info">
-                <div class="share-item-name">ID: ${displayId}</div>
-                <div class="share-item-meta">
-                    <span><i class="fas fa-clock"></i> ${expirationTime}</span>
-                    <span><i class="fas fa-weight"></i> ${size}</span>
+        `;
+    } else {
+        return `
+            <div class="share-item" data-id="${share.id}" data-type="text">
+                <div class="share-item-info">
+                    <div class="share-item-line">ID: <span class="share-id" title="点击查看分享" onclick="window.location.href='/s/${share.id}'">${displayId}</span></div>
+                    <div class="share-item-line">创建时间: ${createdTime}</div>
+                    <div class="share-item-line">过期时间: ${expirationTime}</div>
+                </div>
+                <div class="share-item-actions">
+                    <button class="share-item-btn copy" title="复制链接">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', 'kv')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
-        </div>
-            <div class="share-item-actions">
-                <button class="share-item-btn copy" title="复制链接">
-                <i class="fas fa-link"></i>
-            </button>
-                <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', '${isFile ? 'r2' : 'kv'}')">
-                    <i class="fas fa-trash"></i>
-            </button>
-            </div>
-        </div>
-    `;
+        `;
+    }
 }
 
 function getFileIconByName(fileName) {
@@ -1089,7 +1096,6 @@ function initFileSubmit() {
                             // 检查是否是网络连接丢失错误
                             const response = JSON.parse(xhr.responseText);
                             if (response && response.error && response.error.includes('Network connection lost')) {
-                                console.log('网络连接丢失');
                                 resolve({ ok: false, cancelled: true });
                                 return;
                             }
@@ -1105,7 +1111,6 @@ function initFileSubmit() {
                     xhr.addEventListener('error', () => {
                         // 检查是否是用户主动取消或网络连接丢失
                         if (currentXhr === null || xhr.status === 0) {
-                            console.log('用户取消上传或网络连接丢失');
                             resolve({ ok: false, cancelled: true });
                             return;
                         }
@@ -1113,7 +1118,6 @@ function initFileSubmit() {
                     });
 
                     xhr.addEventListener('abort', () => {
-                        console.log('上传已取消');
                         resolve({ ok: false, cancelled: true });
                     });
 
@@ -1122,7 +1126,6 @@ function initFileSubmit() {
                 }).catch(error => {
                     // 如果是取消上传或网络连接丢失，不显示错误
                     if (currentXhr === null || (error.message && (error.message.includes('Network') || error.message.includes('connection')))) {
-                        console.log('用户取消上传或网络连接丢失');
                         return { ok: false, cancelled: true };
                     }
                     throw error;
@@ -1130,7 +1133,6 @@ function initFileSubmit() {
 
                 // 检查是否是取消上传或网络连接丢失
                 if (!response || response.cancelled) {
-                    console.log('上传已取消或网络连接丢失');
                     // 重置上传状态
                     submitFileBtn.disabled = false;
                     submitFileBtn.innerHTML = '<i class="fas fa-upload"></i> 创建文件分享';
@@ -1152,7 +1154,6 @@ function initFileSubmit() {
                 const result = await response.json().catch(error => {
                     // 如果是取消上传或网络连接丢失，不处理错误
                     if (currentXhr === null || (error.message && (error.message.includes('Network') || error.message.includes('connection')))) {
-                        console.log('用户取消上传或网络连接丢失');
                         return { success: false, cancelled: true };
                     }
                     throw error;
@@ -1259,7 +1260,6 @@ function initFileSubmit() {
             } catch (error) {
                 // 检查是否是取消上传导致的错误
                 if (currentXhr === null || (error.message && (error.message.includes('Network') || error.message.includes('connection')))) {
-                    console.log('用户取消上传或网络连接丢失');
                     return;
                 }
                 console.error('上传文件时出错：', error);
@@ -1316,93 +1316,22 @@ function initFileSubmit() {
 async function fetchShareStats() {
     try {
         // 获取存储列表数据
-        const storageResponse = await fetch('/api/share/storage');
-        if (!storageResponse.ok) {
-            throw new Error('获取存储列表失败');
+        const response = await fetch('/api/share/stats');
+        if (!response.ok) {
+            throw new Error('获取统计数据失败');
         }
-        const storageData = await storageResponse.json();
+        const data = await response.json();
+        console.log('获取到的统计数据:', data);
         
-        if (storageData.success) {
-            const stats = {
-                totalShares: 0,
-                activeShares: 0,
-                usedStorage: 0
-            };
-            
-            // 设置默认总容量为6GB
-            const totalStorage = 6 * 1024 * 1024 * 1024; // 6GB in bytes
-            
-            // 计算总分享数和已用存储空间
-            if (storageData.data) {
-                // 先获取所有R2文件的ID，用于过滤KV存储中的文件信息
-                const r2FileIds = new Set(
-                    storageData.data.r2
-                        ? storageData.data.r2.map(item => item.filename)
-                        : []
-                );
-
-                // 计算KV存储的文本分享
-                if (storageData.data.kv && Array.isArray(storageData.data.kv)) {
-                    // 过滤分享
-                    const validKvShares = storageData.data.kv.filter(item => {
-                        if (!item || !item.name) return false;
-                        // 检查是否为临时文件
-                        const isNotTemp = !item.name.startsWith('temp_');
-                        // 检查是否为系统文件
-                        const isNotSystem = !item.name.startsWith('system_');
-                        // 检查是否已过期
-                        const isNotExpired = !item.expiration || new Date(item.expiration * 1000) > new Date();
-                        // 检查是否为文件信息记录（如果ID存在于R2文件列表中，说明是文件信息）
-                        const isNotFileInfo = !r2FileIds.has(item.name);
-                        
-                        // 过滤掉临时文件、系统文件和文件信息记录
-                        return isNotTemp && isNotSystem && isNotFileInfo;
-                    });
-                    
-                    stats.totalShares += validKvShares.length;
-                    // 活跃分享只计算未过期的
-                    stats.activeShares += validKvShares.filter(item => !item.expiration || new Date(item.expiration * 1000) > new Date()).length;
-                    // 估算文本存储大小（如果没有具体大小，默认为1KB）
-                    validKvShares.forEach(item => {
-                        stats.usedStorage += 1024; // 默认每个文本分享1KB
-                    });
-                }
-                
-                // 计算R2存储的文件分享
-                if (storageData.data.r2 && Array.isArray(storageData.data.r2)) {
-                    // 过滤分享
-                    const validR2Shares = storageData.data.r2.filter(item => {
-                        if (!item || !item.filename) return false;
-                        // 检查是否为临时文件
-                        const isNotTemp = !item.filename.startsWith('temp_');
-                        // 检查是否为系统文件
-                        const isNotSystem = !item.filename.startsWith('system_');
-                        // 检查是否已过期
-                        const isNotExpired = !item.expiration || new Date(item.expiration * 1000) > new Date();
-                        
-                        // 暂时只过滤临时文件和系统文件
-                        return isNotTemp && isNotSystem;
-                    });
-                    
-                    stats.totalShares += validR2Shares.length;
-                    stats.activeShares += validR2Shares.filter(item => !item.expiration || new Date(item.expiration * 1000) > new Date()).length;
-                    // 累加文件大小
-                    validR2Shares.forEach(item => {
-                        if (item.filesize) {
-                            stats.usedStorage += item.filesize;
-                        }
-                    });
-                }
-            }
-            
+        if (data.success) {
             // 更新统计数据显示
-            document.getElementById('totalShares').textContent = stats.totalShares;
-            document.getElementById('activeShares').textContent = stats.activeShares;
-            document.getElementById('usedStorage').textContent = formatFileSize(stats.usedStorage);
-            document.getElementById('totalStorage').textContent = formatFileSize(totalStorage);
+            document.getElementById('totalShares').textContent = data.data.totalShares;
+            document.getElementById('activeShares').textContent = data.data.activeShares;
+            document.getElementById('usedStorage').textContent = formatFileSize(data.data.usedStorage);
+            document.getElementById('totalStorage').textContent = formatFileSize(data.data.totalStorage);
             
             // 计算并更新使用百分比
-            const usagePercent = (stats.usedStorage / totalStorage * 100).toFixed(1);
+            const usagePercent = data.data.usagePercent;
             document.getElementById('usagePercent').textContent = `${usagePercent}%`;
             
             // 更新进度条
@@ -1431,7 +1360,7 @@ async function fetchShareStats() {
             }
         }
     } catch (error) {
-        showToast('获取统计数据失败', 'error');
+        console.error('获取统计数据失败:', error);
     }
 }
 
@@ -1448,12 +1377,14 @@ async function fetchStorageList() {
             </div>
         `;
 
-        const response = await fetch('/api/share/storage');
+        const response = await fetch('/api/file');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log('获取到的存储列表数据:', data);
+        
         if (data.success) {
             // 清空加载状态
             shareItems.innerHTML = '';
@@ -1487,7 +1418,8 @@ function displayStorageList(data, newItem = null) {
             expiration: newItem.expiresAt,
             size: newItem.filesize || newItem.size || 0,
             filename: newItem.filename,
-            originalname: newItem.originalname
+            originalname: newItem.originalname,
+            createdAt: newItem.createdAt || newItem.created || Date.now()
         });
         shareItems.insertAdjacentHTML('afterbegin', newItemHtml);
         return;
@@ -1499,39 +1431,27 @@ function displayStorageList(data, newItem = null) {
 
     // 合并KV和R2的数据为统一的分享列表
     const allShares = [
-        // 先添加 R2 的文件分享
-        ...data.r2.map(item => ({
-            id: item.filename,
+        // 添加文本分享
+        ...(data.kv || []).map(item => ({
+            id: item.id,
+            type: 'text',
+            content: item.content,
+            expiration: item.expiration,
+            createdAt: item.createdAt
+        })),
+        // 添加文件分享
+        ...(data.r2 || []).map(item => ({
+            id: item.id,
             type: 'file',
             size: item.filesize,
-            expiration: item.expiration ? item.expiration * 1000 : null,
+            expiration: item.expiration,
             filename: item.filename,
             originalname: item.originalname,
-            createdAt: item.uploaded || Date.now()
-        })),
-        // 再添加 KV 的文本分享，但排除与 R2 文件同名的记录
-        ...data.kv.filter(item => {
-            // 排除临时文件、系统文件和与 R2 文件同名的记录
-            if (!item || !item.name) return false;
-            if (item.name.startsWith('temp_')) return false;
-            if (item.name.startsWith('system_')) return false;
-            // 检查是否存在同名的 R2 文件
-            return !data.r2.some(r2Item => r2Item.filename === item.name);
-        }).map(item => ({
-            id: item.name,
-            type: 'text',
-            expiration: item.expiration * 1000,
-            size: 0,
-            createdAt: item.uploaded || Date.now()
+            createdAt: item.createdAt
         }))
-    ].filter(item => {
-        // 只过滤掉临时文件和系统文件
-        if (item.type === 'file') {
-            if (item.filename.startsWith('temp_')) return false;
-            if (item.filename.startsWith('system_')) return false;
-        }
-        return true;
-    });
+    ];
+
+    console.log('合并后的分享列表:', allShares);
 
     // 按创建时间排序，最新的在前面
     allShares.sort((a, b) => {
@@ -1742,7 +1662,6 @@ async function deleteStorageItem(id, type) {
             }
             // 检查是否是网络连接丢失
             if (data.message && data.message.includes('Network connection lost')) {
-                console.log('网络连接丢失');
                 return;
             }
             showToast(data.message || '删除失败', 'error');
@@ -1752,7 +1671,6 @@ async function deleteStorageItem(id, type) {
     } catch (err) {
         // 检查是否是网络连接丢失
         if (err.message && (err.message.includes('Network') || err.message.includes('connection'))) {
-            console.log('网络连接丢失');
             return;
         }
         console.error('删除失败:', err);

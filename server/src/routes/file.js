@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const Share = require('../models/Share');
 const { r2 } = require('../utils/cloudflare');
+const prisma = require('../db/prisma');
 
 // 配置内存存储，用于临时存储文件
 const storage = multer.memoryStorage();
@@ -19,7 +20,7 @@ const upload = multer({
 router.post('/', upload.single('file'), async (req, res) => {
     try {
         const file = req.file;
-        const { password, duration, customUrl, maxViews } = req.body;
+        const { password, duration, customUrl, maxViews, originalname } = req.body;
 
         if (!file) {
             return res.status(400).json({
@@ -63,27 +64,26 @@ router.post('/', upload.single('file'), async (req, res) => {
         // 上传到 R2
         await r2.upload(fileKey, file);
 
-        // 创建分享
-        const share = new Share({
-            id: fileId,
-            type: 'file',
-            filename: fileKey,
-            originalname: file.originalname,
-            filesize: file.size,
-            mimetype: file.mimetype,
-            password: hashedPassword,
-            expiresAt,
-            maxViews: maxViews || 0,
-            customUrl: customUrl || null
+        // 保存文件信息到数据库
+        const fileShare = await prisma.fileShare.create({
+            data: {
+                id: fileId,
+                filename: fileKey,
+                originalname: originalname || file.originalname, // 使用传入的originalname或fallback到file.originalname
+                mimetype: file.mimetype,
+                size: file.size,
+                password: hashedPassword,
+                expiresAt,
+                maxViews: maxViews ? parseInt(maxViews) : null,
+                customUrl: customUrl || null
+            }
         });
-
-        await share.save();
 
         res.json({
             success: true,
             data: {
-                id: share.id,
-                url: customUrl ? `/s/${customUrl}` : `/s/${share.id}`
+                id: fileShare.id,
+                url: customUrl ? `/s/${customUrl}` : `/s/${fileShare.id}`
             }
         });
     } catch (err) {

@@ -167,6 +167,9 @@ class Share {
                     continue;
                 }
 
+                // 检查是否是手动上传的文件
+                if (!share.isManualUpload) continue;
+
                 // 使用 id 作为 key 来去重
                 if (!shares.has(share.id)) {
                     shares.set(share.id, share);

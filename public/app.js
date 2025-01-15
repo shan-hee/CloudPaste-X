@@ -62,14 +62,6 @@ function initTextSubmit() {
                 submitTextBtn.disabled = true;
                 submitTextBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
 
-                console.log('准备发送请求，数据：', {
-                    content: textContent,
-                    password: password || undefined,
-                    duration,
-                    customUrl: customUrl || undefined,
-                    maxViews
-                });
-
                 const response = await fetch('/api/text', {
                     method: 'POST',
                     headers: {
@@ -80,19 +72,17 @@ function initTextSubmit() {
                         password: password || undefined,
                         duration,
                         customUrl: customUrl || undefined,
-                        maxViews
+                        maxViews,
+                        isUserUpload: true
                     })
                 });
 
-                console.log('收到响应:', response);
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('响应错误:', response.status, errorText);
                     throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
                 }
 
                 const result = await response.json();
-                console.log('解析响应:', result);
                 
                 if (result.success) {
                     // 显示分享结果
@@ -143,15 +133,18 @@ function initTextSubmit() {
                     document.getElementById('textMaxViews').value = '0';
                     document.getElementById('charCount').textContent = '0 字符';
 
-                    // 添加到存储列表
-                    displayStorageList(null, {
-                        type: 'text',
-                        id: result.data.id,
-                        expiresAt: result.data.expiresAt
-                    });
-
-                    // 刷新分享统计
-                    fetchShareStats();
+                    // 添加到存储列表并更新统计
+                    await Promise.all([
+                        displayStorageList(null, {
+                            type: 'text',
+                            id: result.data.id,
+                            expiresAt: result.data.expiresAt,
+                            content: textContent,
+                            isUserUpload: true
+                        }),
+                        fetchShareStats(),
+                        fetchStorageList()
+                    ]);
                 } else {
                     shareResult.style.display = 'block';
                     shareResult.classList.add('error');
@@ -225,7 +218,7 @@ function initTextSubmit() {
                 
                 // 设置初始样式
                 qrCodeContainer.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 1000;';
-                modal.style.cssText = 'background: white; padding: 24px; border-radius: 8px; text-align: center; max-width: 90%; width: 320px; position: relative; transform: translateY(-20px); opacity: 0; transition: all 0.3s ease;';
+                modal.style.cssText = 'background: var(--background-color); padding: 24px; border-radius: 8px; text-align: center; max-width: 90%; width: 320px; position: relative; transform: translateY(-20px); opacity: 0; transition: all 0.3s ease; border: 1px solid var(--border-color);';
                 
                 // 生成新的二维码
                 const shareUrl = shareLink.value;
@@ -758,91 +751,34 @@ function initShareFilters() {
 
 // 在创建分享项时添加类型标记
 function createShareItem(share) {
-    const item = document.createElement('div');
-    item.className = 'share-item';
-    
-    // 获取文件图标
-    let iconClass = 'fa-file-alt';
-    if (share.type === 'file') {
-        iconClass = share.fileName ? getFileIconByName(share.fileName) : 'fa-file';
-    } else if (share.type === 'book') {
-        iconClass = 'fa-bookmark';
-    }
+    const isFile = share.type === 'file';
+    const icon = isFile ? getFileIconByName(share.originalname || share.filename || share.id) : 'fa-file-alt';
+    const expirationTime = share.expiration ? new Date(share.expiration).toLocaleString() : '永不过期';
+    const size = isFile ? formatFileSize(share.size) : '-';
+    const displayId = (share.id || '').split('-')[0];
 
-    // 格式化创建时间
-    const createDate = new Date(share.createdAt);
-    const formattedDate = `${createDate.getFullYear()}/${(createDate.getMonth() + 1).toString().padStart(2, '0')}/${createDate.getDate().toString().padStart(2, '0')} ${createDate.getHours().toString().padStart(2, '0')}:${createDate.getMinutes().toString().padStart(2, '0')}:${createDate.getSeconds().toString().padStart(2, '0')}`;
-
-    // 格式化过期时间
-    let expiresText = '永不过期';
-    if (share.expiresAt) {
-        const expiresDate = new Date(share.expiresAt);
-        const now = new Date();
-        const diffTime = expiresDate - now;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffTime < 0) {
-            expiresText = '已过期';
-        } else if (diffDays === 0) {
-            expiresText = '今天过期';
-        } else if (diffDays === 1) {
-            expiresText = '明天过期';
-        } else {
-            expiresText = `${diffDays}天后过期`;
-        }
-    }
-
-    item.innerHTML = `
-        <i class="fas ${iconClass} share-icon"></i>
-        <div class="share-info">
-            <div class="share-id">
-                ${share.fileName || share.id}
-                <span class="share-type">${share.type === 'text' ? '文本' : share.type === 'file' ? '文件' : '书签'}</span>
+    return `
+        <div class="share-item" data-id="${share.id}" data-type="${isFile ? 'file' : 'text'}">
+            <div class="share-item-icon">
+                <i class="fas ${icon}"></i>
             </div>
-            <div class="share-meta">
-                <span><i class="far fa-clock"></i>创建时间: ${formattedDate}</span>
-                <span class="share-expires"><i class="fas fa-hourglass-half"></i>${expiresText}</span>
+            <div class="share-item-info">
+                <div class="share-item-name">ID: ${displayId}</div>
+                <div class="share-item-meta">
+                    <span><i class="fas fa-clock"></i> ${expirationTime}</span>
+                    <span><i class="fas fa-weight"></i> ${size}</span>
             </div>
         </div>
-        <div class="share-actions">
-            <button class="share-btn copy" title="复制链接">
+            <div class="share-item-actions">
+                <button class="share-item-btn copy" title="复制链接">
                 <i class="fas fa-link"></i>
             </button>
-            <button class="share-btn edit" title="修改密码">
-                <i class="fas fa-key"></i>
+                <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', '${isFile ? 'r2' : 'kv'}')">
+                    <i class="fas fa-trash"></i>
             </button>
-            <button class="share-btn delete" title="删除">
-                <i class="fas fa-trash-alt"></i>
-            </button>
+            </div>
         </div>
     `;
-
-    // 添加事件处理
-    const copyBtn = item.querySelector('.share-btn.copy');
-    const editBtn = item.querySelector('.share-btn.edit');
-    const deleteBtn = item.querySelector('.share-btn.delete');
-
-    copyBtn.addEventListener('click', () => {
-        const shareUrl = `${window.location.origin}/share/${share.id}`;
-        navigator.clipboard.writeText(shareUrl).then(() => {
-            copyBtn.innerHTML = '<i class="fas fa-check"></i>';
-            setTimeout(() => {
-                copyBtn.innerHTML = '<i class="fas fa-link"></i>';
-            }, 2000);
-        });
-    });
-
-    editBtn.addEventListener('click', () => {
-        // 实现修改密码功能
-    });
-
-    deleteBtn.addEventListener('click', () => {
-        if (confirm('确定要删除这个分享吗？')) {
-            // 实现删除功能
-        }
-    });
-
-    return item;
 }
 
 function getFileIconByName(fileName) {
@@ -995,6 +931,10 @@ function initFileSubmit() {
         return durations[duration] || 0;
     }
 
+    let currentXhr = null; // 用于存储当前的 XMLHttpRequest 对象
+    let isUploading = false; // 添加标记表示是否正在上传
+    let isCancelled = false; // 添加标记表示是否已取消
+
     if (submitFileBtn) {
         submitFileBtn.addEventListener('click', async () => {
             if (selectedFiles.length === 0) {
@@ -1002,8 +942,13 @@ function initFileSubmit() {
                 return;
             }
 
-            submitFileBtn.disabled = true;
+            // 重置取消状态
+            isCancelled = false;
+            isUploading = true;
+
+            // 更新按钮状态
             submitFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在打包上传...';
+            submitFileBtn.disabled = true;
             progressContainer.style.display = 'block';
 
             try {
@@ -1030,6 +975,10 @@ function initFileSubmit() {
                     
                     // 将所有文件添加到 zip 中
                     for (const file of selectedFiles) {
+                        // 检查是否已取消
+                        if (isCancelled) {
+                            throw new Error('cancelled');
+                        }
                         zip.file(file.name, file);
                     }
 
@@ -1041,13 +990,17 @@ function initFileSubmit() {
                             level: 9
                         }
                     }, (metadata) => {
+                        // 检查是否已取消
+                        if (isCancelled) {
+                            throw new Error('cancelled');
+                        }
                         // 更新压缩进度
                         const progress = metadata.percent.toFixed(1);
                         progressBar.style.width = `${progress}%`;
                         progressPercent.textContent = `${progress}%`;
                         progressText.innerHTML = `
-                            <i class="fas fa-file-archive"></i>
-                            正在打包文件...
+                            <i class="fas fa-arrows-alt-v"></i>
+                            正在压缩... 
                             <span class="upload-count">${selectedFiles.length}个文件</span>
                         `;
                     });
@@ -1061,6 +1014,11 @@ function initFileSubmit() {
                     });
                 }
 
+                // 检查是否已取消
+                if (isCancelled) {
+                    throw new Error('cancelled');
+                }
+
                 // 准备表单数据
                 const formData = new FormData();
                 formData.append('file', uploadFile);
@@ -1069,6 +1027,7 @@ function initFileSubmit() {
                 formData.append('duration', fileDuration.value);
                 formData.append('customUrl', fileCustomUrl.value);
                 formData.append('maxViews', fileMaxViews.value);
+                formData.append('isUserUpload', 'true');  // 添加用户上传标记
 
                 // 重置上传速度计算
                 uploadStartTime = Date.now();
@@ -1079,6 +1038,7 @@ function initFileSubmit() {
                 // 使用 XMLHttpRequest 上传
                 const response = await new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
+                    currentXhr = xhr; // 保存当前的 xhr 对象
                     
                     xhr.upload.addEventListener('progress', (progressEvent) => {
                         if (progressEvent.lengthComputable) {
@@ -1097,17 +1057,25 @@ function initFileSubmit() {
                             progressPercent.textContent = `${Math.round(progress)}%`;
                             
                             // 更新上传状态显示
-                            progressText.innerHTML = `
-                                <i class="fas fa-cloud-upload-alt"></i>
-                                正在上传压缩包...
-                                <span class="upload-count">${selectedFiles.length}个文件</span>
-                                <i class="fas fa-tachometer-alt"></i>
-                                <span class="upload-speed">${formatSpeed(speed)}</span>
-                                ${estimatedTimeSeconds > 0 ? `
-                                    <i class="far fa-clock"></i>
-                                    <span class="time-remaining">${Math.ceil(estimatedTimeSeconds)}s</span>
-                                ` : ''}
-                            `;
+                            if (progressEvent.loaded === 0) {
+                                progressText.innerHTML = `
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <span>正在处理文件...</span>
+                                    <span class="upload-count">${selectedFiles.length}个文件</span>
+                                `;
+                            } else {
+                                progressText.innerHTML = `
+                                    <i class="fas fa-upload"></i>
+                                    <span>正在上传...</span>
+                                    <span class="upload-count">${selectedFiles.length}个文件</span>
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    <span class="upload-speed">${formatSpeed(speed)}</span>
+                                    ${estimatedTimeSeconds > 0 ? `
+                                        <i class="far fa-clock"></i>
+                                        <span class="time-remaining">${Math.ceil(estimatedTimeSeconds)}s</span>
+                                    ` : ''}
+                                `;
+                            }
                         }
                     });
 
@@ -1118,23 +1086,91 @@ function initFileSubmit() {
                                 json: () => Promise.resolve(JSON.parse(xhr.responseText))
                             });
                         } else {
+                            // 检查是否是网络连接丢失错误
+                            const response = JSON.parse(xhr.responseText);
+                            if (response && response.error && response.error.includes('Network connection lost')) {
+                                console.log('网络连接丢失');
+                                resolve({ ok: false, cancelled: true });
+                                return;
+                            }
+                            // 如果是取消上传，不抛出错误
+                            if (currentXhr === null) {
+                                resolve({ ok: false, cancelled: true });
+                                return;
+                            }
                             reject(new Error(`HTTP Error: ${xhr.status}`));
                         }
                     });
 
                     xhr.addEventListener('error', () => {
+                        // 检查是否是用户主动取消或网络连接丢失
+                        if (currentXhr === null || xhr.status === 0) {
+                            console.log('用户取消上传或网络连接丢失');
+                            resolve({ ok: false, cancelled: true });
+                            return;
+                        }
                         reject(new Error('Network Error'));
+                    });
+
+                    xhr.addEventListener('abort', () => {
+                        console.log('上传已取消');
+                        resolve({ ok: false, cancelled: true });
                     });
 
                     xhr.open('POST', '/api/file');
                     xhr.send(formData);
+                }).catch(error => {
+                    // 如果是取消上传或网络连接丢失，不显示错误
+                    if (currentXhr === null || (error.message && (error.message.includes('Network') || error.message.includes('connection')))) {
+                        console.log('用户取消上传或网络连接丢失');
+                        return { ok: false, cancelled: true };
+                    }
+                    throw error;
                 });
 
+                // 检查是否是取消上传或网络连接丢失
+                if (!response || response.cancelled) {
+                    console.log('上传已取消或网络连接丢失');
+                    // 重置上传状态
+                    submitFileBtn.disabled = false;
+                    submitFileBtn.innerHTML = '<i class="fas fa-upload"></i> 创建文件分享';
+                    progressContainer.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    progressPercent.textContent = '0%';
+                    progressText.textContent = '正在处理文件...';
+                    return;
+                }
+
                 if (!response.ok) {
+                    // 如果是取消上传或网络连接丢失，不抛出错误
+                    if (currentXhr === null || response.cancelled) {
+                        return;
+                    }
                     throw new Error('上传失败');
                 }
 
-                const result = await response.json();
+                const result = await response.json().catch(error => {
+                    // 如果是取消上传或网络连接丢失，不处理错误
+                    if (currentXhr === null || (error.message && (error.message.includes('Network') || error.message.includes('connection')))) {
+                        console.log('用户取消上传或网络连接丢失');
+                        return { success: false, cancelled: true };
+                    }
+                    throw error;
+                });
+
+                // 如果是取消上传或网络连接丢失，直接返回
+                if (!result || result.cancelled) {
+                    return;
+                }
+
+                // 重置按钮状态
+                submitFileBtn.disabled = false;
+                submitFileBtn.innerHTML = '<i class="fas fa-upload"></i> 创建文件分享';
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0%';
+                progressPercent.textContent = '0%';
+                progressText.textContent = '正在处理文件...';
+
                 if (result.success) {
                     // 创建结果显示
                     const fileUploadDiv = document.getElementById('fileUpload');
@@ -1199,16 +1235,17 @@ function initFileSubmit() {
                     const fileList = document.getElementById('fileList');
                     fileList.innerHTML = '';
 
-                    // 添加到存储列表
-                    displayStorageList(null, {
-                        type: 'file',
-                        filename: result.data.filename,
-                        mimetype: 'application/zip',
-                        filesize: uploadFile.size
-                    });
-
-                    // 刷新分享统计
-                    fetchShareStats();
+                    // 添加到存储列表并更新统计
+                    await Promise.all([
+                        displayStorageList(null, {
+                            type: 'file',
+                            filename: result.data.filename,
+                            mimetype: 'application/zip',
+                            filesize: uploadFile.size
+                        }),
+                        fetchShareStats(),
+                        fetchStorageList()
+                    ]);
                 }
 
                 // 更新上传区域可见性
@@ -1220,15 +1257,56 @@ function initFileSubmit() {
                 fileMaxViews.value = '0';
 
             } catch (error) {
+                // 检查是否是取消上传导致的错误
+                if (currentXhr === null || (error.message && (error.message.includes('Network') || error.message.includes('connection')))) {
+                    console.log('用户取消上传或网络连接丢失');
+                    return;
+                }
                 console.error('上传文件时出错：', error);
                 alert('上传失败：' + error.message);
             } finally {
+                // 如果不是取消上传或网络连接丢失，才重置按钮状态
+                if (currentXhr !== null) {
+                    submitFileBtn.disabled = false;
+                    submitFileBtn.innerHTML = '<i class="fas fa-upload"></i> 创建文件分享';
+                    progressContainer.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    progressPercent.textContent = '0%';
+                    progressText.textContent = '正在处理文件...';
+                }
+            }
+        });
+    }
+
+    // 添加取消上传按钮的事件监听
+    const cancelUploadBtn = document.getElementById('cancelUpload');
+    if (cancelUploadBtn) {
+        cancelUploadBtn.addEventListener('click', () => {
+            if (currentXhr || isUploading) {
+                // 标记为用户主动取消
+                isCancelled = true;
+                if (currentXhr) {
+                    currentXhr.abort(); // 取消上传
+                    currentXhr = null;
+                }
+                isUploading = false;
+                
+                // 重置上传状态
                 submitFileBtn.disabled = false;
-                submitFileBtn.innerHTML = '<i class="fas fa-share"></i> 创建文件分享';
+                submitFileBtn.innerHTML = '<i class="fas fa-upload"></i> 创建文件分享';
                 progressContainer.style.display = 'none';
                 progressBar.style.width = '0%';
                 progressPercent.textContent = '0%';
-                progressText.textContent = '正在上传...';
+                progressText.textContent = '正在处理文件...';
+                
+                // 显示取消上传的提示
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = '已取消文件上传';
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
             }
         });
     }
@@ -1237,86 +1315,123 @@ function initFileSubmit() {
 // 获取分享统计数据
 async function fetchShareStats() {
     try {
-        console.log('开始获取统计数据');
-        const response = await fetch('/api/share/stats', {
-            cache: 'no-cache',
-            headers: {
-                'Cache-Control': 'no-cache'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('获取统计数据失败');
+        // 获取存储列表数据
+        const storageResponse = await fetch('/api/share/storage');
+        if (!storageResponse.ok) {
+            throw new Error('获取存储列表失败');
         }
+        const storageData = await storageResponse.json();
         
-        const data = await response.json();
-        console.log('获取到的统计数据:', data);
-        
-        if (data.success && data.data) {
-            const stats = data.data;
-            const totalSharesEl = document.getElementById('totalShares');
-            const activeSharesEl = document.getElementById('activeShares');
-            const usedStorageEl = document.getElementById('usedStorage');
-            const totalStorageEl = document.getElementById('totalStorage');
-            const usagePercentEl = document.getElementById('usagePercent');
-            const usageProgressEl = document.querySelector('.usage-progress');
-            const storageUsageEl = document.querySelector('.storage-usage');
+        if (storageData.success) {
+            const stats = {
+                totalShares: 0,
+                activeShares: 0,
+                usedStorage: 0
+            };
             
-            if (totalSharesEl) totalSharesEl.textContent = stats.totalShares || 0;
-            if (activeSharesEl) activeSharesEl.textContent = stats.activeShares || 0;
-            if (usedStorageEl) usedStorageEl.textContent = formatFileSize(stats.usedStorage || 0);
-            if (totalStorageEl) totalStorageEl.textContent = formatFileSize(stats.totalStorage || 0);
-            if (usagePercentEl) usagePercentEl.textContent = stats.usagePercent + '%';
+            // 设置默认总容量为6GB
+            const totalStorage = 6 * 1024 * 1024 * 1024; // 6GB in bytes
             
-            // 更新进度条和状态样式
-            if (usageProgressEl) {
-                usageProgressEl.style.width = stats.usagePercent + '%';
-                usageProgressEl.className = 'usage-progress ' + (stats.storageStatus || '');
+            // 计算总分享数和已用存储空间
+            if (storageData.data) {
+                // 先获取所有R2文件的ID，用于过滤KV存储中的文件信息
+                const r2FileIds = new Set(
+                    storageData.data.r2
+                        ? storageData.data.r2.map(item => item.filename)
+                        : []
+                );
+
+                // 计算KV存储的文本分享
+                if (storageData.data.kv && Array.isArray(storageData.data.kv)) {
+                    // 过滤分享
+                    const validKvShares = storageData.data.kv.filter(item => {
+                        if (!item || !item.name) return false;
+                        // 检查是否为临时文件
+                        const isNotTemp = !item.name.startsWith('temp_');
+                        // 检查是否为系统文件
+                        const isNotSystem = !item.name.startsWith('system_');
+                        // 检查是否已过期
+                        const isNotExpired = !item.expiration || new Date(item.expiration * 1000) > new Date();
+                        // 检查是否为文件信息记录（如果ID存在于R2文件列表中，说明是文件信息）
+                        const isNotFileInfo = !r2FileIds.has(item.name);
+                        
+                        // 过滤掉临时文件、系统文件和文件信息记录
+                        return isNotTemp && isNotSystem && isNotFileInfo;
+                    });
+                    
+                    stats.totalShares += validKvShares.length;
+                    // 活跃分享只计算未过期的
+                    stats.activeShares += validKvShares.filter(item => !item.expiration || new Date(item.expiration * 1000) > new Date()).length;
+                    // 估算文本存储大小（如果没有具体大小，默认为1KB）
+                    validKvShares.forEach(item => {
+                        stats.usedStorage += 1024; // 默认每个文本分享1KB
+                    });
+                }
+                
+                // 计算R2存储的文件分享
+                if (storageData.data.r2 && Array.isArray(storageData.data.r2)) {
+                    // 过滤分享
+                    const validR2Shares = storageData.data.r2.filter(item => {
+                        if (!item || !item.filename) return false;
+                        // 检查是否为临时文件
+                        const isNotTemp = !item.filename.startsWith('temp_');
+                        // 检查是否为系统文件
+                        const isNotSystem = !item.filename.startsWith('system_');
+                        // 检查是否已过期
+                        const isNotExpired = !item.expiration || new Date(item.expiration * 1000) > new Date();
+                        
+                        // 暂时只过滤临时文件和系统文件
+                        return isNotTemp && isNotSystem;
+                    });
+                    
+                    stats.totalShares += validR2Shares.length;
+                    stats.activeShares += validR2Shares.filter(item => !item.expiration || new Date(item.expiration * 1000) > new Date()).length;
+                    // 累加文件大小
+                    validR2Shares.forEach(item => {
+                        if (item.filesize) {
+                            stats.usedStorage += item.filesize;
+                        }
+                    });
+                }
             }
             
-            if (storageUsageEl) {
-                storageUsageEl.className = 'storage-usage ' + (stats.storageStatus || '');
+            // 更新统计数据显示
+            document.getElementById('totalShares').textContent = stats.totalShares;
+            document.getElementById('activeShares').textContent = stats.activeShares;
+            document.getElementById('usedStorage').textContent = formatFileSize(stats.usedStorage);
+            document.getElementById('totalStorage').textContent = formatFileSize(totalStorage);
+            
+            // 计算并更新使用百分比
+            const usagePercent = (stats.usedStorage / totalStorage * 100).toFixed(1);
+            document.getElementById('usagePercent').textContent = `${usagePercent}%`;
+            
+            // 更新进度条
+            const progressBar = document.querySelector('.usage-progress');
+            if (progressBar) {
+                progressBar.style.width = `${usagePercent}%`;
                 
-                // 添加状态标签
-                const statusLabel = document.createElement('span');
-                statusLabel.className = 'storage-status ' + (stats.storageStatus || '');
-                statusLabel.textContent = stats.storageStatus === 'danger' ? '存储空间紧张' : 
-                                        stats.storageStatus === 'warning' ? '存储空间偏高' : '';
-                
-                const usageLabelEl = storageUsageEl.querySelector('.usage-label');
-                const existingStatus = usageLabelEl.querySelector('.storage-status');
-                if (existingStatus) {
-                    existingStatus.remove();
-                }
-                if (stats.storageStatus !== 'normal') {
-                    usageLabelEl.appendChild(statusLabel);
+                // 根据使用比例设置状态样式
+                progressBar.className = 'usage-progress';
+                if (usagePercent >= 90) {
+                    progressBar.classList.add('danger');
+                } else if (usagePercent >= 70) {
+                    progressBar.classList.add('warning');
                 }
             }
             
-            // 缓存统计数据
-            localStorage.setItem('shareStats', JSON.stringify(stats));
+            // 更新存储状态标签
+            const storageUsage = document.querySelector('.storage-usage');
+            if (storageUsage) {
+                storageUsage.className = 'storage-usage';
+                if (usagePercent >= 90) {
+                    storageUsage.classList.add('danger');
+                } else if (usagePercent >= 70) {
+                    storageUsage.classList.add('warning');
+                }
+            }
         }
     } catch (error) {
-        console.error('获取统计数据失败:', error);
-        // 从缓存获取之前的统计数据
-        const cachedStats = JSON.parse(localStorage.getItem('shareStats') || '{}');
-        
-        // 发生错误时使用缓存数据
-        const elements = {
-            totalShares: document.getElementById('totalShares'),
-            activeShares: document.getElementById('activeShares'),
-            usedStorage: document.getElementById('usedStorage'),
-            totalStorage: document.getElementById('totalStorage'),
-            usagePercent: document.getElementById('usagePercent')
-        };
-        
-        Object.entries(elements).forEach(([key, el]) => {
-            if (el && cachedStats[key]) {
-                el.textContent = key.includes('Storage') ? 
-                    formatFileSize(cachedStats[key]) : 
-                    cachedStats[key];
-            }
-        });
+        showToast('获取统计数据失败', 'error');
     }
 }
 
@@ -1366,7 +1481,14 @@ function displayStorageList(data, newItem = null) {
     
     // 如果是新项插入，直接添加到列表中
     if (newItem) {
-        const newItemHtml = createShareItem(newItem);
+        const newItemHtml = createShareItem({
+            id: newItem.filename || newItem.id,
+            type: newItem.type,
+            expiration: newItem.expiresAt,
+            size: newItem.filesize || newItem.size || 0,
+            filename: newItem.filename,
+            originalname: newItem.originalname
+        });
         shareItems.insertAdjacentHTML('afterbegin', newItemHtml);
         return;
     }
@@ -1377,24 +1499,44 @@ function displayStorageList(data, newItem = null) {
 
     // 合并KV和R2的数据为统一的分享列表
     const allShares = [
-        ...data.kv.map(item => ({
+        // 先添加 R2 的文件分享
+        ...data.r2.map(item => ({
+            id: item.filename,
+            type: 'file',
+            size: item.filesize,
+            expiration: item.expiration ? item.expiration * 1000 : null,
+            filename: item.filename,
+            originalname: item.originalname,
+            createdAt: item.uploaded || Date.now()
+        })),
+        // 再添加 KV 的文本分享，但排除与 R2 文件同名的记录
+        ...data.kv.filter(item => {
+            // 排除临时文件、系统文件和与 R2 文件同名的记录
+            if (!item || !item.name) return false;
+            if (item.name.startsWith('temp_')) return false;
+            if (item.name.startsWith('system_')) return false;
+            // 检查是否存在同名的 R2 文件
+            return !data.r2.some(r2Item => r2Item.filename === item.name);
+        }).map(item => ({
             id: item.name,
             type: 'text',
             expiration: item.expiration * 1000,
-            size: 0
-        })),
-        ...data.r2.map(item => ({
-            id: item.Key,
-            type: 'file',
-            size: item.Size,
-            expiration: null
+            size: 0,
+            createdAt: item.uploaded || Date.now()
         }))
-    ];
+    ].filter(item => {
+        // 只过滤掉临时文件和系统文件
+        if (item.type === 'file') {
+            if (item.filename.startsWith('temp_')) return false;
+            if (item.filename.startsWith('system_')) return false;
+        }
+        return true;
+    });
 
     // 按创建时间排序，最新的在前面
     allShares.sort((a, b) => {
-        const timeA = a.expiration || Date.now();
-        const timeB = b.expiration || Date.now();
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
         return timeB - timeA;
     });
 
@@ -1410,47 +1552,22 @@ function displayStorageList(data, newItem = null) {
     addStorageItemEventListeners();
 }
 
-// 创建分享项
-function createShareItem(share) {
-    const isFile = share.type === 'file';
-    const icon = isFile ? 'fa-file' : 'fa-file-alt';
-    const expirationTime = share.expiration ? new Date(share.expiration).toLocaleString() : '永不过期';
-    const size = isFile ? formatFileSize(share.size) : '-';
-
-    return `
-        <div class="share-item" data-id="${share.id}">
-            <div class="share-item-icon">
-                <i class="fas ${icon}"></i>
-            </div>
-            <div class="share-item-info">
-                <div class="share-item-name">${share.id}</div>
-                <div class="share-item-meta">
-                    <span><i class="fas fa-clock"></i> ${expirationTime}</span>
-                    <span><i class="fas fa-weight"></i> ${size}</span>
-                </div>
-            </div>
-            <div class="share-item-actions">
-                <button class="share-item-btn copy" title="复制链接">
-                    <i class="fas fa-link"></i>
-                </button>
-                <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', '${isFile ? 'r2' : 'kv'}')">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `;
-}
-
 // 修改事件监听器添加函数
 function addStorageItemEventListeners(container = document) {
     // 复制按钮事件
-    container.querySelectorAll('.storage-item-btn.copy').forEach(btn => {
+    container.querySelectorAll('.share-item-btn.copy').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-            const item = e.target.closest('.storage-item');
-            const name = item.querySelector('.storage-item-name').textContent;
+            const item = e.target.closest('.share-item');
+            const id = item.getAttribute('data-id');
+            const shareUrl = `${window.location.origin}/share/${id}`;
             try {
-                await navigator.clipboard.writeText(name);
-                showToast('已复制到剪贴板', 'success');
+                await navigator.clipboard.writeText(shareUrl);
+                const copyBtn = e.target.closest('.share-item-btn');
+                copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-link"></i>';
+                }, 2000);
+                showToast('已复制分享链接', 'success');
             } catch (err) {
                 console.error('复制失败:', err);
                 showToast('复制失败', 'error');
@@ -1477,14 +1594,15 @@ document.getElementById('refreshList').addEventListener('click', async (e) => {
 // 初始化时调用
 document.addEventListener('DOMContentLoaded', () => {
     fetchStorageList();
+    initShareFilters();
 });
 
 // Toast 通知功能
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `vt-ast vt-ast-${type}`;
     toast.innerHTML = `
-        <div class="toast-content">
+        <div class="vt-ast-content">
             <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
             <span>${message}</span>
         </div>
@@ -1504,52 +1622,52 @@ function showToast(message, type = 'info') {
 // 添加 Toast 样式
 const style = document.createElement('style');
 style.textContent = `
-    .toast {
+    .vt-ast {
         position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 12px 24px;
+        top: 16px;
+        right: 16px;
+        padding: 10px 16px;
         border-radius: 4px;
         background: white;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         transform: translateX(120%);
-        transition: transform 0.3s ease-in-out;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1000;
-        display: flex;
-        align-items: center;
-        min-width: 250px;
+        min-width: 200px;
+        max-width: 320px;
     }
 
-    .toast.show {
+    .vt-ast.show {
         transform: translateX(0);
     }
 
-    .toast-content {
+    .vt-ast-content {
         display: flex;
         align-items: center;
         gap: 8px;
+        font-size: 14px;
     }
 
-    .toast-success {
+    .vt-ast-success {
         background: #f0fdf4;
-        border-left: 4px solid #22c55e;
+        border-left: 3px solid #22c55e;
         color: #15803d;
     }
 
-    .toast-error {
+    .vt-ast-error {
         background: #fef2f2;
-        border-left: 4px solid #ef4444;
+        border-left: 3px solid #ef4444;
         color: #b91c1c;
     }
 
-    .toast-info {
+    .vt-ast-info {
         background: #eff6ff;
-        border-left: 4px solid #3b82f6;
+        border-left: 3px solid #3b82f6;
         color: #1d4ed8;
     }
 
-    .toast i {
-        font-size: 1.2em;
+    .vt-ast i {
+        font-size: 16px;
     }
 `;
 document.head.appendChild(style);
@@ -1581,8 +1699,8 @@ async function handleDelete(id) {
 
 // 删除存储项
 async function deleteStorageItem(id, type) {
-    const confirmed = await showConfirmDialog(
-        '确定要删除这个分享吗？',
+    const confirmed = confirm(
+        '确定要删除这个分享吗？\n' +
         '此操作不可恢复！'
     );
     
@@ -1590,12 +1708,12 @@ async function deleteStorageItem(id, type) {
 
     try {
         // 立即从界面上移除
-        const item = document.querySelector(`.storage-item[data-id="${id}"]`);
+        const item = document.querySelector(`.share-item[data-id="${id}"]`);
         if (item) {
             item.classList.add('deleting');
         }
 
-        // 发送删除请求
+        // 发送删除请求，同时删除 KV 和 R2 中的数据
         const response = await fetch(`/api/share/${id}`, {
             method: 'DELETE',
             headers: {
@@ -1607,28 +1725,43 @@ async function deleteStorageItem(id, type) {
         
         if (data.success) {
             if (item) {
-                item.remove();
+                // 添加淡出动画
+                item.style.transition = 'opacity 0.3s ease';
+                item.style.opacity = '0';
+                setTimeout(() => {
+                    item.remove();
+                }, 300);
             }
             showToast('删除成功', 'success');
-            // 更新统计数据
+            // 只更新统计数据
             await fetchShareStats();
         } else {
             // 如果删除失败，恢复界面显示并显示错误消息
             if (item) {
                 item.classList.remove('deleting');
             }
+            // 检查是否是网络连接丢失
+            if (data.message && data.message.includes('Network connection lost')) {
+                console.log('网络连接丢失');
+                return;
+            }
             showToast(data.message || '删除失败', 'error');
-            // 重新获取列表
+            // 删除失败时才重新获取列表
             await fetchStorageList();
         }
     } catch (err) {
+        // 检查是否是网络连接丢失
+        if (err.message && (err.message.includes('Network') || err.message.includes('connection'))) {
+            console.log('网络连接丢失');
+            return;
+        }
         console.error('删除失败:', err);
         // 恢复界面显示
         if (item) {
             item.classList.remove('deleting');
         }
         showToast(err.message || '删除失败', 'error');
-        // 重新获取列表
+        // 删除失败时才重新获取列表
         await fetchStorageList();
     }
 }
@@ -1784,14 +1917,14 @@ function toggleQRCode(url) {
     qrCodeContainer.style.cssText = 'display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 1000;';
     
     qrCodeContainer.innerHTML = `
-        <div class="qr-code-modal" style="background: white; padding: 24px; border-radius: 8px; text-align: center; max-width: 90%; width: 320px; position: relative; transform: translateY(-20px); opacity: 0; transition: all 0.3s ease;">
-            <h3 style="margin: 0 0 16px 0; font-size: 18px;">扫描二维码访问</h3>
-            <div class="qr-code" id="tempQrCode" style="margin-bottom: 16px;"></div>
+        <div class="qr-code-modal" style="background: var(--background-color); padding: 24px; border-radius: 8px; text-align: center; max-width: 90%; width: 320px; position: relative; transform: translateY(-20px); opacity: 0; transition: all 0.3s ease; border: 1px solid var(--border-color);">
+            <h3 style="margin: 0 0 16px 0; font-size: 18px; color: var(--text-color); font-weight: bold;">扫描二维码访问</h3>
+            <div class="qr-code" id="tempQrCode" style="margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;"></div>
             <div class="qr-code-actions" style="display: flex; gap: 8px; justify-content: center;">
-                <button class="qr-download-btn" id="tempDownloadQRCode" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                <button class="qr-download-btn" id="tempDownloadQRCode" style="padding: 8px 16px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
                     <i class="fas fa-download"></i> 下载二维码
                 </button>
-                <button class="qr-close-btn" style="padding: 8px 16px; background: #e5e7eb; color: #374151; border: none; border-radius: 4px; cursor: pointer;">
+                <button class="qr-close-btn" style="padding: 8px 16px; background: var(--secondary-color); color: var(--text-color); border: none; border-radius: 4px; cursor: pointer;">
                     关闭
                 </button>
             </div>
@@ -1869,4 +2002,24 @@ function toggleQRCode(url) {
             closeQRCode();
         }
     });
+}
+
+// 显示Toast提示
+function showToast(message = '内容已复制到剪贴板', duration = 2000) {
+    const toast = document.getElementById('toast');
+    const messageSpan = toast.querySelector('span');
+    messageSpan.textContent = message;
+    
+    // 清除之前的定时器
+    if (toast.hideTimeout) {
+        clearTimeout(toast.hideTimeout);
+    }
+    
+    // 显示 toast
+    toast.classList.add('show');
+    
+    // 设置定时器隐藏 toast
+    toast.hideTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+    }, duration);
 } 

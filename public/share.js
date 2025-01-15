@@ -3,8 +3,17 @@ function showToast(message = '内容已复制到剪贴板', duration = 2000) {
     const toast = document.getElementById('toast');
     const messageSpan = toast.querySelector('span');
     messageSpan.textContent = message;
+    
+    // 清除之前的定时器
+    if (toast.hideTimeout) {
+        clearTimeout(toast.hideTimeout);
+    }
+    
+    // 显示 toast
     toast.classList.add('show');
-    setTimeout(() => {
+    
+    // 设置定时器隐藏 toast
+    toast.hideTimeout = setTimeout(() => {
         toast.classList.remove('show');
     }, duration);
 }
@@ -330,10 +339,153 @@ async function deleteFile(id) {
     }
 }
 
-// 二维码按钮点击事件
-document.querySelector('.qr-btn').addEventListener('click', function() {
+// 添加显示二维码函数
+function toggleQRCode(url) {
+    const qrCodeContainer = document.createElement('div');
+    qrCodeContainer.className = 'qr-code-container';
+    qrCodeContainer.style.cssText = 'display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 1000;';
+    
+    qrCodeContainer.innerHTML = `
+        <div class="qr-code-modal" style="background: var(--container-bg); padding: 24px; border-radius: 8px; text-align: center; max-width: 90%; width: 320px; position: relative; transform: translateY(-20px); opacity: 0; transition: all 0.3s ease;">
+            <h3 style="margin: 0 0 16px 0; font-size: 18px; color: var(--text-color);">扫描二维码访问</h3>
+            <div class="qr-code" id="tempQrCode" style="margin-bottom: 16px; background: white; padding: 10px; border-radius: 4px;"></div>
+            <div class="qr-code-actions" style="display: flex; gap: 10px; justify-content: center; align-items: center;">
+                <button class="qr-download-btn" id="tempDownloadQRCode" style="padding: 8px 16px; border: 1px solid #e5e7eb; border-radius: 4px; cursor: pointer; min-width: 125px; background: var(--container-bg); color: var(--text-color); display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s ease;"><i class="fas fa-download"></i>下载二维码</button>
+                <button class="qr-close-btn" style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 4px; cursor: pointer; min-width: 60px; background: var(--container-bg); color: var(--text-color); transition: all 0.2s ease;">关闭</button>
+            </div>
+        </div>
+    `;
+    
+    // 添加悬浮效果
+    const downloadBtn = qrCodeContainer.querySelector('.qr-download-btn');
+    downloadBtn.addEventListener('mouseover', () => {
+        const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDarkTheme) {
+            downloadBtn.style.background = 'white';
+            downloadBtn.style.borderColor = '#4A90E2';
+            downloadBtn.style.color = '#4A90E2';
+        } else {
+            downloadBtn.style.borderColor = '#4A90E2';
+            downloadBtn.style.color = '#4A90E2';
+        }
+    });
+    downloadBtn.addEventListener('mouseout', () => {
+        const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDarkTheme) {
+            downloadBtn.style.background = 'var(--container-bg)';
+            downloadBtn.style.borderColor = '#e5e7eb';
+            downloadBtn.style.color = '#e5e7eb';
+        } else {
+            downloadBtn.style.borderColor = '#e5e7eb';
+            downloadBtn.style.color = '#333';
+        }
+    });
+
+    const modalCloseBtn = qrCodeContainer.querySelector('.qr-close-btn');
+    modalCloseBtn.addEventListener('mouseover', () => {
+        const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDarkTheme) {
+            modalCloseBtn.style.background = 'white';
+            modalCloseBtn.style.borderColor = '#ff4d4f';
+            modalCloseBtn.style.color = '#ff8f1f';
+        } else {
+            modalCloseBtn.style.borderColor = '#ff4d4f';
+            modalCloseBtn.style.color = '#ff8f1f';
+        }
+    });
+    modalCloseBtn.addEventListener('mouseout', () => {
+        const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDarkTheme) {
+            modalCloseBtn.style.background = 'var(--container-bg)';
+            modalCloseBtn.style.borderColor = '#e5e7eb';
+            modalCloseBtn.style.color = '#e5e7eb';
+        } else {
+            modalCloseBtn.style.borderColor = '#e5e7eb';
+            modalCloseBtn.style.color = '#333';
+        }
+    });
+
+    // 设置初始暗色主题样式
+    if (document.documentElement.getAttribute('data-theme') === 'dark') {
+        downloadBtn.style.color = '#e5e7eb';
+        modalCloseBtn.style.color = '#e5e7eb';
+    }
+    
+    document.body.appendChild(qrCodeContainer);
+    
+    // 生成二维码
+    const qrCodeDiv = document.getElementById('tempQrCode');
+    qrCodeDiv.innerHTML = '';
+    
+    // 生成新的二维码
+    const qrcode = new QRCode(qrCodeDiv, {
+        text: url,
+        width: 250,
+        height: 250,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+    });
+    
+    // 下载按钮事件
+    document.getElementById('tempDownloadQRCode').addEventListener('click', () => {
+        const canvas = qrCodeDiv.querySelector('canvas');
+        if (canvas) {
+            const link = document.createElement('a');
+            link.download = '分享链接二维码.png';
+            link.href = canvas.toDataURL('image/png');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    });
+    
+    // 显示容器并添加动画
+    qrCodeContainer.style.display = 'flex';
+    setTimeout(() => {
+        const modal = qrCodeContainer.querySelector('.qr-code-modal');
+        modal.style.transform = 'translateY(0)';
+        modal.style.opacity = '1';
+    }, 10);
+    
+    // 关闭按钮事件
+    modalCloseBtn.addEventListener('click', closeQRCode);
+    
+    // 点击遮罩层关闭
+    qrCodeContainer.addEventListener('click', (e) => {
+        if (e.target === qrCodeContainer) {
+            closeQRCode();
+        }
+    });
+    
+    // 关闭函数
+    function closeQRCode() {
+        const modal = qrCodeContainer.querySelector('.qr-code-modal');
+        modal.style.transform = 'translateY(-20px)';
+        modal.style.opacity = '0';
+        setTimeout(() => {
+            qrCodeContainer.remove();
+        }, 300);
+    }
+    
+    // ESC键关闭
+    document.addEventListener('keydown', function escListener(e) {
+        if (e.key === 'Escape') {
+            document.removeEventListener('keydown', escListener);
+            closeQRCode();
+        }
+    });
+} 
+
+// 确保二维码按钮点击事件正确绑定
+document.addEventListener('DOMContentLoaded', function() {
+    const qrButton = document.querySelector('.qr-btn');
+    if (qrButton) {
+        qrButton.addEventListener('click', function() {
     const url = this.dataset.url || window.location.href;
     toggleQRCode(url);
+        });
+    }
 });
 
 // 页面加载时获取内容
@@ -719,5 +871,165 @@ document.getElementById('downloadBtn').addEventListener('click', async () => {
         }
     }
 });
+
+// 获取分享统计数据
+async function fetchShareStats() {
+    try {
+        console.log('开始获取统计数据');
+        // 获取存储列表数据
+        const storageResponse = await fetch('/api/share/storage');
+        if (!storageResponse.ok) {
+            throw new Error('获取存储列表失败');
+        }
+        const storageData = await storageResponse.json();
+        
+        if (storageData.success) {
+            const stats = {
+                totalShares: 0,
+                activeShares: 0,
+                usedStorage: 0
+            };
+            
+            // 设置默认总容量为6GB
+            const totalStorage = 6 * 1024 * 1024 * 1024; // 6GB in bytes
+            
+            // 计算总分享数和已用存储空间
+            if (storageData.data) {
+                // 计算KV存储的文本分享
+                if (storageData.data.kv && Array.isArray(storageData.data.kv)) {
+                    // 过滤掉系统生成的临时文件
+                    const validKvShares = storageData.data.kv.filter(item => {
+                        return item.type === 'text' && !item.name.startsWith('temp_');
+                    });
+                    stats.totalShares += validKvShares.length;
+                    stats.activeShares += validKvShares.length;
+                    // 估算文本存储大小
+                    validKvShares.forEach(item => {
+                        if (item.content) {
+                            stats.usedStorage += item.content.length;
+                        }
+                    });
+                }
+                
+                // 计算R2存储的文件分享
+                if (storageData.data.r2 && Array.isArray(storageData.data.r2)) {
+                    // 过滤掉没有原始文件名的文件和系统生成的临时文件
+                    const validR2Shares = storageData.data.r2.filter(item => {
+                        return item.originalname && !item.filename.startsWith('temp_');
+                    });
+                    stats.totalShares += validR2Shares.length;
+                    stats.activeShares += validR2Shares.length;
+                    // 累加文件大小
+                    validR2Shares.forEach(item => {
+                        if (item.filesize) {
+                            stats.usedStorage += item.filesize;
+                        }
+                    });
+                }
+            }
+            
+            // 更新统计数据显示
+            document.getElementById('totalShares').textContent = stats.totalShares;
+            document.getElementById('activeShares').textContent = stats.activeShares;
+            document.getElementById('usedStorage').textContent = formatFileSize(stats.usedStorage);
+            document.getElementById('totalStorage').textContent = formatFileSize(totalStorage);
+            
+            // 计算并更新使用百分比
+            const usagePercent = (stats.usedStorage / totalStorage * 100).toFixed(1);
+            document.getElementById('usagePercent').textContent = `${usagePercent}%`;
+            
+            // 更新进度条
+            const progressBar = document.querySelector('.usage-progress');
+            if (progressBar) {
+                progressBar.style.width = `${usagePercent}%`;
+                
+                // 根据使用比例设置状态样式
+                progressBar.className = 'usage-progress';
+                if (usagePercent >= 90) {
+                    progressBar.classList.add('danger');
+                } else if (usagePercent >= 70) {
+                    progressBar.classList.add('warning');
+                }
+            }
+            
+            // 更新存储状态标签
+            const storageUsage = document.querySelector('.storage-usage');
+            if (storageUsage) {
+                storageUsage.className = 'storage-usage';
+                if (usagePercent >= 90) {
+                    storageUsage.classList.add('danger');
+                } else if (usagePercent >= 70) {
+                    storageUsage.classList.add('warning');
+                }
+            }
+            
+            console.log('统计数据更新完成:', stats);
+        }
+    } catch (error) {
+        console.error('获取统计数据失败:', error);
+        showToast('获取统计数据失败', 'error');
+    }
+}
+
+// 显示存储列表
+function displayStorageList(data, newItem = null) {
+    const shareItems = document.getElementById('shareItems');
+    
+    // 如果是新项插入，直接添加到列表中
+    if (newItem) {
+        const newItemHtml = createShareItem({
+            id: newItem.filename || newItem.id,
+            type: newItem.type,
+            expiration: newItem.expiresAt,
+            size: newItem.filesize || newItem.size || 0,
+            filename: newItem.filename,
+            originalname: newItem.originalname
+        });
+        shareItems.insertAdjacentHTML('afterbegin', newItemHtml);
+        return;
+    }
+
+    // 显示完整列表
+    const storageResults = document.createElement('div');
+    storageResults.className = 'storage-results';
+
+    // 合并KV和R2的数据为统一的分享列表
+    const allShares = [
+        ...(data.kv || []).filter(item => item.type === 'text' && !item.name.startsWith('temp_')).map(item => ({
+            id: item.name,
+            type: 'text',
+            expiration: item.expiration * 1000,
+            size: item.content ? item.content.length : 0,
+            createdAt: item.createdAt
+        })),
+        ...(data.r2 || []).filter(item => item.originalname && !item.filename.startsWith('temp_')).map(item => ({
+            id: item.filename,
+            type: 'file',
+            size: item.filesize,
+            expiration: null,
+            filename: item.filename,
+            originalname: item.originalname,
+            createdAt: item.createdAt
+        }))
+    ];
+
+    // 按创建时间排序，最新的在前面
+    allShares.sort((a, b) => {
+        const timeA = a.createdAt || 0;
+        const timeB = b.createdAt || 0;
+        return timeB - timeA;
+    });
+
+    const sharesList = document.createElement('div');
+    sharesList.className = 'shares-list';
+    sharesList.innerHTML = allShares.map(item => createShareItem(item)).join('');
+
+    storageResults.appendChild(sharesList);
+    shareItems.innerHTML = ''; // 清空现有内容
+    shareItems.appendChild(storageResults);
+
+    // 添加事件监听器
+    addStorageItemEventListeners();
+}
 
 

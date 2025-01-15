@@ -591,7 +591,8 @@ app.post('/api/file', async (c) => {
             maxViews: maxViews ? parseInt(maxViews) : 0,
             views: 0,
             created: Date.now(),
-            expiresAt
+            expiresAt,
+            isManualUpload: true  // 添加手动上传标记
         };
 
         // 存储元数据到 KV

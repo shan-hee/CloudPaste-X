@@ -571,6 +571,26 @@ app.get('/s/:id', async (c) => {
             }, 410);
         }
 
+        // 检查是否需要密码
+        if (shareData.password) {
+            const accessToken = c.req.header('X-Access-Token');
+            if (!accessToken) {
+                return c.json({
+                    success: false,
+                    message: '需要密码访问',
+                    requirePassword: true
+                }, 403);
+            }
+
+            // 验证密码
+            if (shareData.password !== accessToken) {
+                return c.json({
+                    success: false,
+                    message: '密码错误'
+                }, 403);
+            }
+        }
+
         // 检查访问次数
         if (shareData.maxViews > 0 && shareData.views >= shareData.maxViews) {
             return c.json({
@@ -581,7 +601,6 @@ app.get('/s/:id', async (c) => {
 
         // 更新访问次数
         shareData.views = (shareData.views || 0) + 1;
-        console.log('更新访问次数:', shareData.views);
         await c.env.CLOUDPASTE_KV.put(id, JSON.stringify(shareData), {
             expirationTtl: shareData.expiresAt ? Math.ceil((shareData.expiresAt - Date.now()) / 1000) : undefined
         });
@@ -620,7 +639,6 @@ app.get('/s/:id', async (c) => {
                 });
 
             default:
-                console.log('不支持的分享类型:', shareData.type);
                 return c.json({
                     success: false,
                     message: '不支持的分享类型'
@@ -854,10 +872,10 @@ app.post('/api/admin/logout', async (c) => {
 // 获取设置
 app.get('/api/admin/settings', async (c) => {
   try {
-    // 从KV中获取设置
+    // 从KV中获取设置，如果不存在则使用环境变量的默认值
     const settings = await c.env.CLOUDPASTE_KV.get('upload_settings', 'json') || {
-      textUploadEnabled: true,
-      fileUploadEnabled: true
+      textUploadEnabled: c.env.TEXT_UPLOAD_ENABLED === 'true',
+      fileUploadEnabled: c.env.FILE_UPLOAD_ENABLED === 'true'
     };
     
     return c.json({
@@ -868,7 +886,7 @@ app.get('/api/admin/settings', async (c) => {
     console.error('获取设置失败:', error);
     return c.json({
       success: false,
-      message: error.message || '获取设置失败'
+      message: '获取设置失败'
     }, 500);
   }
 });
@@ -876,51 +894,23 @@ app.get('/api/admin/settings', async (c) => {
 // 更新设置
 app.post('/api/admin/settings', async (c) => {
   try {
-    // 验证会话
-    const sessionId = c.req.header('X-Session-Id');
-    if (!sessionId) {
-      return c.json({
-        success: false,
-        message: '未提供会话ID'
-      }, 401);
-    }
-
-    // 从KV获取会话信息
-    const sessionData = await c.env.CLOUDPASTE_KV.get(`session_${sessionId}`, 'json');
-    if (!sessionData) {
-      return c.json({
-        success: false,
-        message: '会话已过期或不存在'
-      }, 401);
-    }
-
-    // 获取当前设置
-    const { type, enabled } = await c.req.json();
-    const settings = await c.env.CLOUDPASTE_KV.get('upload_settings', 'json') || {
-      textUploadEnabled: true,
-      fileUploadEnabled: true
-    };
-
-    // 更新设置
-    if (type === 'text') {
-      settings.textUploadEnabled = enabled;
-    } else if (type === 'file') {
-      settings.fileUploadEnabled = enabled;
-    }
-
+    const { textUploadEnabled, fileUploadEnabled } = await c.req.json();
+    
     // 保存设置到KV
-    await c.env.CLOUDPASTE_KV.put('upload_settings', JSON.stringify(settings));
-
+    await c.env.CLOUDPASTE_KV.put('upload_settings', JSON.stringify({
+      textUploadEnabled,
+      fileUploadEnabled
+    }));
+    
     return c.json({
       success: true,
-      message: '设置已更新',
-      settings
+      message: '设置已保存'
     });
   } catch (error) {
-    console.error('更新设置失败:', error);
+    console.error('保存设置失败:', error);
     return c.json({
       success: false,
-      message: error.message || '更新设置失败'
+      message: '保存设置失败'
     }, 500);
   }
 });
@@ -928,9 +918,10 @@ app.post('/api/admin/settings', async (c) => {
 // 验证上传权限
 async function checkUploadPermission(c, type) {
   try {
+    // 从KV中获取设置，如果不存在则使用环境变量的默认值
     const settings = await c.env.CLOUDPASTE_KV.get('upload_settings', 'json') || {
-      textUploadEnabled: true,
-      fileUploadEnabled: true
+      textUploadEnabled: c.env.TEXT_UPLOAD_ENABLED === 'true',
+      fileUploadEnabled: c.env.FILE_UPLOAD_ENABLED === 'true'
     };
     
     if (type === 'text' && !settings.textUploadEnabled) {

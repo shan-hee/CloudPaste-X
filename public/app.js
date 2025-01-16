@@ -1,6 +1,10 @@
 // 全局变量
 let selectedFiles = []; // 存储选中的文件
 
+// 添加全局变量来跟踪上传状态
+let currentTextUpload = null;
+let currentFileUpload = null;
+
 // 初始化所有功能
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -27,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initUploadToggles();
         initFileSubmit();
         initPasswordToggle();
+        initPasswordProtection();
     }
 });
 
@@ -74,7 +79,8 @@ function initTextSubmit() {
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                    const errorData = JSON.parse(errorText);
+                    throw new Error(errorData.message || '创建分享失败');
                 }
 
                 const result = await response.json();
@@ -150,7 +156,10 @@ function initTextSubmit() {
                 console.error('创建分享时出错：', error);
                 shareResult.style.display = 'block';
                 shareResult.classList.add('error');
-                shareLink.value = '创建分享时出错：' + error.message;
+                
+                // 显示错误弹框
+                alert(error.message);
+                shareLink.value = '创建分享失败';
             } finally {
                 // 恢复提交按钮
                 submitTextBtn.disabled = false;
@@ -309,32 +318,163 @@ function initUploadToggles() {
     const textUploadBtn = document.getElementById('textUploadBtn');
     const fileUploadBtn = document.getElementById('fileUploadBtn');
     
-    // 从localStorage读取保存的状态
-    const textUploadEnabled = localStorage.getItem('textUploadEnabled') === 'true';
-    const fileUploadEnabled = localStorage.getItem('fileUploadEnabled') === 'true';
-    
-    // 初始化按钮状态
-    if (textUploadEnabled) {
-        textUploadBtn.classList.add('active');
-    }
-    if (fileUploadEnabled) {
-        fileUploadBtn.classList.add('active');
-    }
-    
+    // 从服务器获取初始状态
+    fetch('/api/admin/settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const { textUploadEnabled, fileUploadEnabled } = data.settings;
+                
+                // 设置按钮状态
+                textUploadBtn.checked = textUploadEnabled;
+                fileUploadBtn.checked = fileUploadEnabled;
+                
+                // 更新UI状态
+                updateUploadUI('text', textUploadEnabled);
+                updateUploadUI('file', fileUploadEnabled);
+            }
+        })
+        .catch(error => {
+            console.error('获取上传设置失败:', error);
+            showToast('获取设置失败', 'error');
+        });
+
     // 添加点击事件
-    textUploadBtn.addEventListener('click', function() {
-        this.classList.toggle('active');
-        const isEnabled = this.classList.contains('active');
-        localStorage.setItem('textUploadEnabled', isEnabled);
-        // 这里可以添加启用/禁用文本上传的API调用
+    textUploadBtn.addEventListener('change', async () => {
+        const isEnabled = textUploadBtn.checked;
+        try {
+            // 检查是否有正在进行的上传
+            if (!isEnabled && currentTextUpload) {
+                if (!confirm('当前有正在进行的文本上传，关闭开关将中断上传。是否继续？')) {
+                    textUploadBtn.checked = true;
+                    return;
+                }
+                // 中断当前上传
+                if (currentTextUpload.abort) {
+                    currentTextUpload.abort();
+                }
+                currentTextUpload = null;
+            }
+
+            // 立即更新UI状态
+            updateUploadUI('text', isEnabled);
+            
+            const response = await fetch('/api/admin/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Id': localStorage.getItem('sessionId')
+                },
+                body: JSON.stringify({
+                    textUploadEnabled: isEnabled,
+                    fileUploadEnabled: fileUploadBtn.checked
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showToast(isEnabled ? '已开启文本上传' : '已关闭文本上传');
+            } else {
+                // 如果保存失败，恢复按钮状态和UI
+                textUploadBtn.checked = !isEnabled;
+                updateUploadUI('text', !isEnabled);
+                showToast('保存设置失败', 'error');
+            }
+        } catch (error) {
+            console.error('保存设置失败:', error);
+            // 恢复按钮状态和UI
+            textUploadBtn.checked = !isEnabled;
+            updateUploadUI('text', !isEnabled);
+            showToast('保存设置失败', 'error');
+        }
     });
-    
-    fileUploadBtn.addEventListener('click', function() {
-        this.classList.toggle('active');
-        const isEnabled = this.classList.contains('active');
-        localStorage.setItem('fileUploadEnabled', isEnabled);
-        // 这里可以添加启用/禁用文件上传的API调用
+
+    fileUploadBtn.addEventListener('change', async () => {
+        const isEnabled = fileUploadBtn.checked;
+        try {
+            // 检查是否有正在进行的上传
+            if (!isEnabled && currentFileUpload) {
+                if (!confirm('当前有正在进行的文件上传，关闭开关将中断上传。是否继续？')) {
+                    fileUploadBtn.checked = true;
+                    return;
+                }
+                // 中断当前上传
+                if (currentFileUpload.abort) {
+                    currentFileUpload.abort();
+                }
+                currentFileUpload = null;
+            }
+
+            // 立即更新UI状态
+            updateUploadUI('file', isEnabled);
+            
+            const response = await fetch('/api/admin/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Id': localStorage.getItem('sessionId')
+                },
+                body: JSON.stringify({
+                    textUploadEnabled: textUploadBtn.checked,
+                    fileUploadEnabled: isEnabled
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showToast(isEnabled ? '已开启文件上传' : '已关闭文件上传');
+            } else {
+                // 如果保存失败，恢复按钮状态和UI
+                fileUploadBtn.checked = !isEnabled;
+                updateUploadUI('file', !isEnabled);
+                showToast('保存设置失败', 'error');
+            }
+        } catch (error) {
+            console.error('保存设置失败:', error);
+            // 恢复按钮状态和UI
+            fileUploadBtn.checked = !isEnabled;
+            updateUploadUI('file', !isEnabled);
+            showToast('保存设置失败', 'error');
+        }
     });
+}
+
+// 更新上传UI状态
+function updateUploadUI(type, enabled) {
+    const textUpload = document.getElementById('textUpload');
+    const fileUpload = document.getElementById('fileUpload');
+    const textTab = document.querySelector('[data-tab="text"]');
+    const fileTab = document.querySelector('[data-tab="file"]');
+    const submitText = document.getElementById('submitText');
+    const submitFile = document.getElementById('submitFile');
+
+    if (type === 'text') {
+        if (textUpload) {
+            textUpload.style.opacity = enabled ? '1' : '0.5';
+            textUpload.style.pointerEvents = enabled ? 'auto' : 'none';
+        }
+        if (textTab) {
+            textTab.style.opacity = enabled ? '1' : '0.5';
+            textTab.style.pointerEvents = enabled ? 'auto' : 'none';
+        }
+        if (submitText) {
+            submitText.disabled = !enabled;
+            submitText.title = enabled ? '' : '文本上传功能已关闭';
+        }
+    } else if (type === 'file') {
+        if (fileUpload) {
+            fileUpload.style.opacity = enabled ? '1' : '0.5';
+            fileUpload.style.pointerEvents = enabled ? 'auto' : 'none';
+        }
+        if (fileTab) {
+            fileTab.style.opacity = enabled ? '1' : '0.5';
+            fileTab.style.pointerEvents = enabled ? 'auto' : 'none';
+        }
+        if (submitFile) {
+            submitFile.disabled = !enabled;
+            submitFile.title = enabled ? '' : '文件上传功能已关闭';
+        }
+    }
 }
 
 // 主题切换功能
@@ -638,18 +778,62 @@ async function checkUploadEnabled(type) {
 
 // 修改文本提交处理函数
 async function submitTextHandler() {
+    // 检查是否已禁用
+    const textUploadBtn = document.getElementById('textUploadBtn');
+    if (!textUploadBtn.checked) {
+        showToast('文本上传功能已关闭', 'error');
+        return;
+    }
+
     if (!await checkUploadEnabled('text')) {
         return;
     }
-    // ... 原有的文本提交代码 ...
+
+    try {
+        // 设置当前上传状态
+        currentTextUpload = { abort: null };
+        // ... 原有的上传代码 ...
+    } catch (error) {
+        console.error('上传失败:', error);
+        showToast('上传失败: ' + error.message, 'error');
+    } finally {
+        // 清除当前上传状态
+        currentTextUpload = null;
+    }
 }
 
 // 修改文件提交处理函数
 async function submitFileHandler() {
+    // 检查是否已禁用
+    const fileUploadBtn = document.getElementById('fileUploadBtn');
+    if (!fileUploadBtn.checked) {
+        showToast('文件上传功能已关闭', 'error');
+        return;
+    }
+
     if (!await checkUploadEnabled('file')) {
         return;
     }
-    // ... 原有的文件提交代码 ...
+
+    try {
+        // 设置当前上传状态
+        currentFileUpload = { abort: null };
+        // ... 原有的上传代码 ...
+
+        // 在XMLHttpRequest创建后设置abort函数
+        const xhr = new XMLHttpRequest();
+        currentFileUpload.abort = () => {
+            xhr.abort();
+            showToast('文件上传已取消', 'warning');
+        };
+        // ... 原有的XHR配置代码 ...
+    } catch (error) {
+        console.error('上传失败:', error);
+        showToast('上传失败: ' + error.message, 'error');
+    } finally {
+        // 清除当前上传状态
+        currentFileUpload = null;
+    }
 }
 
 // 编辑器功能初始化
@@ -1566,7 +1750,6 @@ async function fetchShareStats() {
             throw new Error('获取统计数据失败');
         }
         const data = await response.json();
-        console.log('获取到的统计数据:', data);
         
         if (data.success) {
             // 更新统计数据显示
@@ -1628,7 +1811,6 @@ async function fetchStorageList() {
         }
         
         const data = await response.json();
-        console.log('获取到的存储列表数据:', data);
         
         if (data.success) {
             // 清空加载状态
@@ -1696,7 +1878,6 @@ function displayStorageList(data, newItem = null) {
         }))
     ];
 
-    console.log('合并后的分享列表:', allShares);
 
     // 按创建时间排序，最新的在前面
     allShares.sort((a, b) => {
@@ -2044,9 +2225,9 @@ function showConfirmDialog(message, warningText) {
         confirmBtn.addEventListener('click', () => close(true));
         cancelBtn.addEventListener('click', () => close(false));
         
-        // 点击遮罩层关闭
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) close(false);
+        // 阻止对话框上的点击事件冒泡到遮罩层
+        dialog.addEventListener('click', (e) => {
+            e.stopPropagation();
         });
         
         // ESC 键关闭
@@ -2056,14 +2237,6 @@ function showConfirmDialog(message, warningText) {
                 close(false);
             }
         });
-        
-        // 阻止对话框上的点击事件冒泡到遮罩层
-        dialog.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-        
-        // 自动聚焦用户名输入框
-        usernameInput.focus();
     });
 }
 
@@ -2376,4 +2549,206 @@ function initPasswordToggle() {
             });
         }
     });
-} 
+}
+
+// 显示密码验证对话框
+function showPasswordDialog(shareId) {
+    return new Promise((resolve) => {
+        const dialog = document.createElement('div');
+        dialog.className = 'password-dialog';
+        dialog.innerHTML = `
+            <div class="password-dialog-content">
+                <h3>需要密码访问</h3>
+                <p>此内容已被密码保护，请输入密码继续访问</p>
+                <input type="password" id="sharePassword" placeholder="请输入访问密码" />
+                <div class="dialog-buttons">
+                    <button class="cancel-btn">取消</button>
+                    <button class="submit-btn">确认</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        
+        const passwordInput = dialog.querySelector('#sharePassword');
+        const submitBtn = dialog.querySelector('.submit-btn');
+        const cancelBtn = dialog.querySelector('.cancel-btn');
+        
+        submitBtn.addEventListener('click', () => {
+            const password = passwordInput.value.trim();
+            if (!password) {
+                showToast('请输入密码', 'warning');
+                return;
+            }
+            dialog.remove();
+            resolve(password);
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            dialog.remove();
+            resolve(null);
+        });
+        
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitBtn.click();
+            }
+        });
+        
+        // 自动聚焦密码输入框
+        passwordInput.focus();
+    });
+}
+
+// 验证分享密码
+async function verifySharePassword(shareId, password) {
+    try {
+        const response = await fetch(`/api/share/${shareId}/verify`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ password })
+        });
+        
+        const result = await response.json();
+        return result.success;
+    } catch (error) {
+        console.error('密码验证失败:', error);
+        return false;
+    }
+}
+
+// 修改获取分享内容的函数
+async function fetchShareContent(shareId, type) {
+    try {
+        // 先尝试获取内容
+        const response = await fetch(`/api/share/${shareId}`);
+        const data = await response.json();
+        
+        // 如果需要密码验证
+        if (response.status === 403 && data.requirePassword) {
+            // 显示密码输入对话框
+            const password = await showPasswordDialog(shareId);
+            if (!password) {
+                return null; // 用户取消输入密码
+            }
+            
+            // 验证密码
+            const isValid = await verifySharePassword(shareId, password);
+            if (!isValid) {
+                showToast('密码错误', 'error');
+                return null;
+            }
+            
+            // 密码验证通过，重新获取内容
+            const newResponse = await fetch(`/api/share/${shareId}`, {
+                headers: {
+                    'X-Share-Password': password
+                }
+            });
+            return await newResponse.json();
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('获取分享内容失败:', error);
+        showToast('获取分享内容失败', 'error');
+        return null;
+    }
+}
+
+// 修改查看分享内容的处理函数
+async function viewShareContent(shareId, type) {
+    const data = await fetchShareContent(shareId, type);
+    if (!data) return;
+    
+    if (data.success) {
+        if (type === 'text') {
+            displayTextContent(data.data);
+        } else {
+            window.location.href = data.data.url;
+        }
+    } else {
+        showToast(data.message || '获取内容失败', 'error');
+    }
+}
+
+// ... existing code ...
+
+// ... existing code ... 
+
+// 初始化密码保护功能
+function initPasswordProtection() {
+    const passwordToggle = document.getElementById('passwordToggle');
+    const passwordInput = document.getElementById('sharePassword');
+    const passwordContainer = document.querySelector('.password-container');
+    
+    if (passwordToggle) {
+        passwordToggle.addEventListener('change', () => {
+            if (passwordContainer) {
+                passwordContainer.style.display = passwordToggle.checked ? 'block' : 'none';
+            }
+            if (passwordInput) {
+                passwordInput.required = passwordToggle.checked;
+                if (!passwordToggle.checked) {
+                    passwordInput.value = '';
+                }
+            }
+        });
+    }
+}
+
+// 修改文本提交处理函数
+async function submitTextHandler() {
+    // ... existing code ...
+    
+    const password = document.getElementById('textPassword')?.value;
+    const usePassword = document.getElementById('passwordToggle')?.checked;
+    
+    const formData = new FormData();
+    formData.append('content', textContent.value);
+    formData.append('expiration', document.getElementById('textDuration').value);
+    formData.append('maxViews', document.getElementById('textMaxViews').value);
+    if (usePassword && password) {
+        formData.append('password', password);
+    }
+    
+    try {
+        // ... existing code ...
+    } catch (error) {
+        // ... existing code ...
+    }
+}
+
+// 修改文件提交处理函数
+async function submitFileHandler() {
+    // ... existing code ...
+    
+    const password = document.getElementById('sharePassword')?.value;
+    const usePassword = document.getElementById('passwordToggle')?.checked;
+    
+    const formData = new FormData();
+    for (const file of selectedFiles) {
+        formData.append('files', file);
+    }
+    formData.append('expiration', document.getElementById('expiration').value);
+    formData.append('maxViews', document.getElementById('maxViews').value);
+    if (usePassword && password) {
+        formData.append('password', password);
+    }
+    
+    try {
+        // ... existing code ...
+    } catch (error) {
+        // ... existing code ...
+    }
+}
+
+// 在文档加载完成后初始化密码保护功能
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing code ...
+    initPasswordProtection();
+});
+
+// ... existing code ... 

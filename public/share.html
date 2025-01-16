@@ -76,11 +76,10 @@
                 container.appendChild(modal);
                 document.body.appendChild(container);
                 
-                container.onclick = (e) => {
-                    if (e.target === container) {
-                        container.style.display = 'none';
-                    }
-                };
+                // 阻止对话框上的点击事件冒泡到遮罩层
+                modal.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
             }
             
             try {

@@ -94,6 +94,8 @@
 .info-item i {
     font-size: 16px;
     opacity: 0.8;
+    display: flex;
+    align-items: center;
 }
 
 .theme-toggle {
@@ -1383,4 +1385,183 @@
 
 [data-theme='dark'] .preview-content code {
     background: rgba(255, 255, 255, 0.1);
+}
+
+/* 密码验证对话框样式优化 */
+.password-dialog {
+    position: fixed;
+    inset: 0;  /* 替代 top/left/right/bottom: 0 */
+    margin: auto;
+    width: 50%;
+    height: 30%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+}
+
+.password-dialog-content {
+    background-color: var(--container-bg);
+    border-radius: 16px;
+    padding: 28px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transform: translateY(0);
+    animation: slideUp 0.3s ease;
+}
+
+.password-dialog h3 {
+    margin: 0 0 12px 0;
+    color: var(--text-color);
+    font-size: 1.4em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.password-dialog h3 i {
+    color: var(--primary-color);
+    font-size: 1.2em;
+}
+
+.password-dialog p {
+    margin: 0 0 24px 0;
+    color: var(--text-secondary);
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.password-dialog input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 24px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.password-dialog input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.1);
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.dialog-buttons button {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95em;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.dialog-buttons .cancel-btn {
+    background-color: var(--button-secondary-bg);
+    color: var(--text-color);
+}
+
+.dialog-buttons .submit-btn {
+    background-color: var(--primary-color);
+    color: white;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.dialog-buttons button:hover {
+    transform: translateY(-1px);
+}
+
+.dialog-buttons .cancel-btn:hover {
+    background-color: var(--hover-bg);
+}
+
+.dialog-buttons .submit-btn:hover {
+    background-color: #3a87ff;
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.2);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 暗色主题适配 */
+[data-theme='dark'] .password-dialog-content {
+    background-color: var(--container-bg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .password-dialog input {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .password-dialog input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.2);
+}
+
+[data-theme='dark'] .dialog-buttons .cancel-btn {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .dialog-buttons .cancel-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* 自动主题适配 */
+@media (prefers-color-scheme: dark) {
+    [data-theme='auto'] .password-dialog-content {
+        background-color: var(--container-bg);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme='auto'] .password-dialog input {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme='auto'] .password-dialog input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.2);
+    }
+
+    [data-theme='auto'] .dialog-buttons .cancel-btn {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme='auto'] .dialog-buttons .cancel-btn:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+    }
 }

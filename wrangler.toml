@@ -9,6 +9,8 @@ ADMIN_USERNAME = "admin"  # 管理员用户名
 ADMIN_PASSWORD = "admin"  # 管理员密码
 MAX_FILE_SIZE = "500"  # 单个文件大小限制，单位MB，Workers上传到R2的限制是500MB
 SESSION_DURATION = "7d"  # 会话持续时间，支持：1h,1d,7d,30d
+TEXT_UPLOAD_ENABLED = "true"  # 文本上传开关，默认开启
+FILE_UPLOAD_ENABLED = "true"  # 文件上传开关，默认开启
 
 [[kv_namespaces]]
 binding = "CLOUDPASTE_KV"

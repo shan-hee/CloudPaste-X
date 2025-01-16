@@ -194,18 +194,24 @@ app.get('/api/share/stats', async (c) => {
 app.post('/api/text', async (c) => {
   try {
     const data = await c.req.json()
-    const { content, customUrl, password, duration, maxViews } = data
+    const { content, filename, password, duration, maxViews } = data
 
     console.log('收到文本上传请求:', {
       contentLength: content?.length,
-      customUrl,
+      filename,
       password: password ? '已设置' : '未设置',
       duration,
       maxViews
     })
 
+    // 验证上传权限
+    const permissionCheck = await checkUploadPermission(c, 'text');
+    if (permissionCheck !== true) {
+      return permissionCheck;
+    }
+
     // 生成唯一ID
-    const id = customUrl || crypto.randomUUID()
+    const id = crypto.randomUUID()
     
     // 计算过期时间
     let expiresAt = null
@@ -230,6 +236,7 @@ app.post('/api/text', async (c) => {
       id,
       type: 'text',
       content,
+      filename: data.filename,
       password,
       maxViews: maxViews || 0,
       views: 0,
@@ -279,6 +286,21 @@ app.post('/api/file', async (c) => {
                 success: false,
                 message: '未找到上传的文件'
             }, 400);
+        }
+
+        // 检查文件大小
+        const maxFileSize = parseInt(c.env.MAX_FILE_SIZE || '100') * 1024 * 1024; // 转换为字节
+        if (file.size > maxFileSize) {
+            return c.json({
+                success: false,
+                message: `文件大小超过限制（${parseInt(c.env.MAX_FILE_SIZE || '100')}MB）`
+            }, 400);
+        }
+
+        // 验证上传权限
+        const permissionCheck = await checkUploadPermission(c, 'file');
+        if (permissionCheck !== true) {
+            return permissionCheck;
         }
 
         // 生成唯一ID
@@ -695,5 +717,244 @@ app.post('/s/:id/verify', async (c) => {
     }, 500)
   }
 })
+
+// 管理员登录验证
+app.post('/api/admin/login', async (c) => {
+  try {
+    const { username, password } = await c.req.json()
+
+    // 从环境变量获取管理员凭证，如果未配置则使用默认值
+    const adminUsername = c.env.ADMIN_USERNAME || 'admin'
+    const adminPassword = c.env.ADMIN_PASSWORD || 'admin'
+
+    // 验证用户名和密码
+    if (username === adminUsername && password === adminPassword) {
+      // 生成会话ID
+      const sessionId = crypto.randomUUID()
+      
+      // 计算过期时间
+      let expiresAt = null
+      switch (c.env.SESSION_DURATION || '7d') {
+        case '1h':
+          expiresAt = Date.now() + 60 * 60 * 1000
+          break
+        case '1d':
+          expiresAt = Date.now() + 24 * 60 * 60 * 1000
+          break
+        case '7d':
+          expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
+          break
+        case '30d':
+          expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000
+          break
+        default:
+          expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000 // 默认7天
+      }
+
+      // 保存会话信息到KV
+      const sessionData = {
+        username: adminUsername,
+        createdAt: Date.now(),
+        expiresAt
+      }
+      await c.env.CLOUDPASTE_KV.put(`session_${sessionId}`, JSON.stringify(sessionData), {
+        expirationTtl: Math.ceil((expiresAt - Date.now()) / 1000)
+      })
+
+      return c.json({
+        success: true,
+        message: '登录成功',
+        data: {
+          sessionId,
+          expiresAt
+        }
+      })
+    } else {
+      return c.json({
+        success: false,
+        message: '用户名或密码错误'
+      }, 401)
+    }
+  } catch (error) {
+    console.error('登录验证失败:', error)
+    return c.json({
+      success: false,
+      message: error.message || '登录验证失败'
+    }, 500)
+  }
+})
+
+// 验证会话状态
+app.get('/api/admin/session', async (c) => {
+  try {
+    const sessionId = c.req.header('X-Session-Id')
+    if (!sessionId) {
+      return c.json({
+        success: false,
+        message: '未提供会话ID'
+      }, 401)
+    }
+
+    // 从KV获取会话信息
+    const sessionData = await c.env.CLOUDPASTE_KV.get(`session_${sessionId}`, 'json')
+    if (!sessionData) {
+      return c.json({
+        success: false,
+        message: '会话已过期或不存在'
+      }, 401)
+    }
+
+    // 检查是否过期
+    if (sessionData.expiresAt && Date.now() > sessionData.expiresAt) {
+      // 删除过期会话
+      await c.env.CLOUDPASTE_KV.delete(`session_${sessionId}`)
+      return c.json({
+        success: false,
+        message: '会话已过期'
+      }, 401)
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        username: sessionData.username,
+        expiresAt: sessionData.expiresAt
+      }
+    })
+  } catch (error) {
+    console.error('验证会话失败:', error)
+    return c.json({
+      success: false,
+      message: error.message || '验证会话失败'
+    }, 500)
+  }
+})
+
+// 退出登录
+app.post('/api/admin/logout', async (c) => {
+  try {
+    const sessionId = c.req.header('X-Session-Id')
+    if (sessionId) {
+      // 从KV中删除会话
+      await c.env.CLOUDPASTE_KV.delete(`session_${sessionId}`)
+    }
+    return c.json({
+      success: true,
+      message: '已退出登录'
+    })
+  } catch (error) {
+    console.error('退出登录失败:', error)
+    return c.json({
+      success: false,
+      message: error.message || '退出登录失败'
+    }, 500)
+  }
+})
+
+// 获取设置
+app.get('/api/admin/settings', async (c) => {
+  try {
+    // 从KV中获取设置
+    const settings = await c.env.CLOUDPASTE_KV.get('upload_settings', 'json') || {
+      textUploadEnabled: true,
+      fileUploadEnabled: true
+    };
+    
+    return c.json({
+      success: true,
+      settings
+    });
+  } catch (error) {
+    console.error('获取设置失败:', error);
+    return c.json({
+      success: false,
+      message: error.message || '获取设置失败'
+    }, 500);
+  }
+});
+
+// 更新设置
+app.post('/api/admin/settings', async (c) => {
+  try {
+    // 验证会话
+    const sessionId = c.req.header('X-Session-Id');
+    if (!sessionId) {
+      return c.json({
+        success: false,
+        message: '未提供会话ID'
+      }, 401);
+    }
+
+    // 从KV获取会话信息
+    const sessionData = await c.env.CLOUDPASTE_KV.get(`session_${sessionId}`, 'json');
+    if (!sessionData) {
+      return c.json({
+        success: false,
+        message: '会话已过期或不存在'
+      }, 401);
+    }
+
+    // 获取当前设置
+    const { type, enabled } = await c.req.json();
+    const settings = await c.env.CLOUDPASTE_KV.get('upload_settings', 'json') || {
+      textUploadEnabled: true,
+      fileUploadEnabled: true
+    };
+
+    // 更新设置
+    if (type === 'text') {
+      settings.textUploadEnabled = enabled;
+    } else if (type === 'file') {
+      settings.fileUploadEnabled = enabled;
+    }
+
+    // 保存设置到KV
+    await c.env.CLOUDPASTE_KV.put('upload_settings', JSON.stringify(settings));
+
+    return c.json({
+      success: true,
+      message: '设置已更新',
+      settings
+    });
+  } catch (error) {
+    console.error('更新设置失败:', error);
+    return c.json({
+      success: false,
+      message: error.message || '更新设置失败'
+    }, 500);
+  }
+});
+
+// 验证上传权限
+async function checkUploadPermission(c, type) {
+  try {
+    const settings = await c.env.CLOUDPASTE_KV.get('upload_settings', 'json') || {
+      textUploadEnabled: true,
+      fileUploadEnabled: true
+    };
+    
+    if (type === 'text' && !settings.textUploadEnabled) {
+      return c.json({
+        success: false,
+        message: '文本上传功能已关闭'
+      }, 403);
+    }
+    
+    if (type === 'file' && !settings.fileUploadEnabled) {
+      return c.json({
+        success: false,
+        message: '文件上传功能已关闭'
+      }, 403);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('验证上传权限失败:', error);
+    return c.json({
+      success: false,
+      message: '验证上传权限失败'
+    }, 500);
+  }
+}
 
 export default app 

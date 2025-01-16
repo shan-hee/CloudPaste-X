@@ -295,9 +295,8 @@ body {
 /* 分屏视图 */
 .split-view {
     display: none;
-    width: 100%;
     height: 100%;
-    height: 100%;
+    gap: 20px;
 }
 
 .split-view.active {
@@ -307,13 +306,60 @@ body {
 .split-editor,
 .split-preview {
     flex: 1;
-    position: relative;
     height: 100%;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--container-bg);
+}
+
+.split-editor textarea {
+    width: 100%;
     height: 100%;
+    padding: 15px;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    font-size: 14px;
+    line-height: 1.6;
+    resize: none;
 }
 
 .split-preview {
-    border-left: 1px solid var(--border-color);
+    padding: 15px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.split-preview .preview-content {
+    height: 100%;
+    overflow: auto;
+    padding-right: 10px;
+}
+
+/* 自定义滚动条样式 */
+.split-editor textarea::-webkit-scrollbar,
+.split-preview .preview-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.split-editor textarea::-webkit-scrollbar-track,
+.split-preview .preview-content::-webkit-scrollbar-track {
+    background: var(--container-bg);
+    border-radius: 4px;
+}
+
+.split-editor textarea::-webkit-scrollbar-thumb,
+.split-preview .preview-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.split-editor textarea::-webkit-scrollbar-thumb:hover,
+.split-preview .preview-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-color-light);
 }
 
 /* 统一滚动条样式 */
@@ -1535,22 +1581,66 @@ body {
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
     transition: right 0.3s ease;
     z-index: 1001;
-    overflow-y: auto;
-    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
     box-sizing: border-box;
 }
 
-.sidebar.active {
-    right: 0;
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
 }
 
 .sidebar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
+    padding: 20px;
     border-bottom: 1px solid var(--border-color);
+}
+
+.close-sidebar {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+}
+
+.close-sidebar:hover {
+    color: var(--danger-color);
+    transform: rotate(90deg);
+    background-color: rgba(231, 76, 60, 0.1);
+}
+
+.sidebar-footer {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 16px;
+    background: var(--container-bg);
+    border-top: 1px solid var(--border-color);
+    margin-top: 0;
+    z-index: 2;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar.active {
+    right: 0;
 }
 
 .sidebar-title {
@@ -1558,21 +1648,6 @@ body {
     font-weight: 800;
     color: var(--text-color);
     margin: 0;
-}
-
-.close-sidebar {
-    background: none;
-    border: none;
-    color: var(--text-color);
-    cursor: pointer;
-    padding: 5px;
-    font-size: 1.2rem;
-    transition: all 0.3s ease;
-}
-
-.close-sidebar:hover {
-    color: var(--danger-color);
-    transform: rotate(90deg);
 }
 
 /* 管理面板按钮样式 */
@@ -2740,5 +2815,236 @@ input:disabled + .slider {
 
 .share-id:hover {
     color: var(--accent-color);
+}
+
+/* 登录对话框样式 */
+.login-dialog-overlay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: auto;
+    bottom: auto;
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.login-dialog {
+    pointer-events: auto;
+    background: var(--bg-color);
+    border-radius: 8px;
+    padding: 20px;
+    width: 300px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    margin-top: 20px;
+    margin-right: 20px;
+    animation: slideLeft 0.3s ease-out;
+}
+@keyframes slideLeft {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+@media (max-width: 480px) {
+    .login-dialog {
+        width: 90%;
+        margin: 0 auto 20px auto;
+    }
+    .login-dialog-overlay {
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+    }
+}
+
+.login-dialog h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    color: var(--text-color);
+    text-align: center;
+}
+
+.login-dialog .form-group {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.login-dialog .form-group label {
+    flex: none;
+    width: 60px;
+    margin-bottom: 0;
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.login-dialog .form-group input {
+    flex: 1;
+    width: auto;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.login-dialog .form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.login-dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 0 0 0 70px; /* 与输入框对齐，70px = label宽度(60px) + gap(10px) */
+}
+
+.login-dialog-btn {
+    flex: 1; /* 让按钮平均分配剩余空间 */
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    height: 36px; /* 与输入框高度保持一致 */
+    line-height: 20px; /* 文字垂直居中 */
+}
+
+.login-dialog-btn.login {
+    background: var(--primary-color);
+    color: white;
+}
+
+.login-dialog-btn.login:hover {
+    background: var(--primary-color);
+    opacity: 0.85;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.login-dialog-btn.cancel {
+    background: var(--secondary-bg);
+    color: var(--text-color);
+}
+
+.login-dialog-btn.cancel:hover {
+    background: var(--border-color);
+    opacity: 0.9;
+}
+
+/* 密码输入框容器样式 */
+.password-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.password-input-container input[type="password"],
+.password-input-container input[type="text"] {
+    width: 100% !important;
+    padding-right: 35px !important;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--text-color);
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.password-toggle-btn:hover {
+    opacity: 1;
+}
+
+.password-toggle-btn:focus {
+    outline: none;
+}
+
+/* 暗色主题下的眼睛图标颜色 */
+[data-theme="dark"] .password-toggle-btn {
+    color: var(--text-color);
+}
+
+/* 登录对话框中的密码输入框样式 */
+.login-dialog .password-input-container {
+    margin: 0;
+}
+
+.login-dialog .password-input-container input {
+    margin: 0;
+}
+
+/* 数学公式样式 */
+.katex-display {
+    margin: 1em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+}
+
+.katex {
+    font-size: 1.1em;
+}
+
+.preview-content .katex-display > .katex {
+    white-space: normal;
+}
+
+.sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--border-color);
+    margin-top: auto;
+}
+
+.logout-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.logout-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.2);
+}
+
+.logout-btn i {
+    font-size: 16px;
 }
 

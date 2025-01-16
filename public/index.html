@@ -6,9 +6,13 @@
     <title>CloudPaste - 文件分享</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <script src="app.js" defer></script>
 </head>
 <body>
@@ -75,6 +79,8 @@
                     <button type="button" class="toolbar-btn" data-action="image" title="插入图片"><i class="fas fa-image"></i></button>
                     <button type="button" class="toolbar-btn" data-action="code" title="插入代码"><i class="fas fa-code"></i></button>
                     <button type="button" class="toolbar-btn" data-action="table" title="插入表格"><i class="fas fa-table"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="math" title="插入数学公式块"><i class="fas fa-square-root-alt"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="inline-math" title="插入行内数学公式"><i class="fas fa-superscript"></i></button>
                     <button type="button" class="toolbar-btn" data-action="undo" title="撤销"><i class="fas fa-undo"></i></button>
                     <button type="button" class="toolbar-btn" data-action="redo" title="重做"><i class="fas fa-redo"></i></button>
                     <button type="button" class="toolbar-btn" data-action="clear" title="清空"><i class="fas fa-trash"></i></button>
@@ -103,7 +109,12 @@
             <div class="form-row compact">
                 <div class="form-group">
                     <label>密码保护</label>
-                    <input type="password" id="textPassword" placeholder="可选">
+                    <div class="password-input-container">
+                        <input type="password" id="textPassword" placeholder="可选">
+                        <button type="button" class="password-toggle-btn" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -118,7 +129,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>自定义名称后缀 (可选)</label>
+                    <label>自定义名称(可选)</label>
                     <input type="text" id="textCustomUrl" placeholder="留空自动生成">
                 </div>
 
@@ -189,7 +200,12 @@
             <div class="form-row compact">
                 <div class="form-group">
                     <label>密码保护</label>
-                    <input type="password" id="filePassword" placeholder="可选">
+                    <div class="password-input-container">
+                        <input type="password" id="filePassword" placeholder="可选">
+                        <button type="button" class="password-toggle-btn" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -204,7 +220,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>自定义名称后缀 (可选)</label>
+                    <label>自定义名称(可选)</label>
                     <input type="text" id="fileCustomUrl" placeholder="留空自动生成">
                 </div>
 
@@ -260,7 +276,12 @@
             <div class="form-row compact">
                 <div class="form-group">
                     <label>密码保护</label>
-                    <input type="password" id="bookmarkPassword" placeholder="可选">
+                    <div class="password-input-container">
+                        <input type="password" id="bookmarkPassword" placeholder="可选">
+                        <button type="button" class="password-toggle-btn" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -275,7 +296,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>自定义名称后缀 (可选)</label>
+                    <label>自定义名称(可选)</label>
                     <input type="text" id="bookmarkCustomUrl" placeholder="留空自动生成">
                 </div>
 
@@ -374,6 +395,11 @@
                 </div>
                 <div id="shareItems" class="share-items"></div>
             </div>
+        </div>
+        <div class="sidebar-footer">
+            <button id="logoutBtn" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> 退出登录
+            </button>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

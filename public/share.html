@@ -8,11 +8,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="share.css">
+    <!-- 添加KaTeX CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <!-- 添加marked库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- 添加代码高亮 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css">
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js"></script>
+    <!-- 添加KaTeX JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <!-- 使用CDN加载QRCode库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- 添加html2canvas库 -->
@@ -102,10 +107,6 @@
         // 兼容旧的函数名
         window.toggleQDCode = window.toggleQRCode = toggleQRCode;
         
-        // 确保函数在全局作用域可用
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('页面加载完成，QRCode状态:', typeof QRCode);
-        });
     </script>
     <!-- 最后加载其他脚本 -->
     <script src="app.js" defer></script>
@@ -230,7 +231,7 @@
                     
                     <div class="editor-container">
                         <div class="editor-pane">
-                            <textarea class="edit-content" id="editContent"></textarea>
+                            <textarea class="edit-content" id="editContent" placeholder="在此输入内容..."></textarea>
                         </div>
                         <div class="preview-pane">
                             <div class="preview-content markdown-body"></div>

@@ -13,19 +13,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化主题切换
     initThemeToggle();
     
-    // 初始化标签页切换
-    initTabSwitching();
+    // 检查当前页面
+    const isMainPage = window.location.pathname === '/' || window.location.pathname === '/index.html';
     
-    // 初始化文件上传
-    initFileUpload();
-    
-    // 初始化其他功能
-    initAdminPanel();
-    initEditor();
-    initShareFilters();
-    initTextSubmit();
-    initUploadToggles();
-    initFileSubmit();
+    if (isMainPage) {
+        // 只在主页面初始化这些功能
+        initTabSwitching();
+        initFileUpload();
+        initAdminPanel();
+        initEditor();
+        initShareFilters();
+        initTextSubmit();
+        initUploadToggles();
+        initFileSubmit();
+        initPasswordToggle();
+    }
 });
 
 // 初始化文本提交功能
@@ -43,7 +45,7 @@ function initTextSubmit() {
                 const textContent = document.getElementById('textContent').value;
                 const password = document.getElementById('textPassword').value;
                 const duration = document.getElementById('textDuration').value;
-                const customUrl = document.getElementById('textCustomUrl').value;
+                const filename = parseInt(document.getElementById('textCustomUrl').value)||'CloudPaste-Text';
                 const maxViews = parseInt(document.getElementById('textMaxViews').value) || 0;
 
                 if (!textContent) {
@@ -64,8 +66,8 @@ function initTextSubmit() {
                         content: textContent,
                         password: password || undefined,
                         duration,
-                        customUrl: customUrl || undefined,
                         maxViews,
+                        filename: filename || undefined,
                         isUserUpload: true
                     })
                 });
@@ -122,8 +124,9 @@ function initTextSubmit() {
                     // 清空表单
                     document.getElementById('textContent').value = '';
                     document.getElementById('textPassword').value = '';
-                    document.getElementById('textCustomUrl').value = '';
+                    document.getElementById('textDuration').value = '1h';
                     document.getElementById('textMaxViews').value = '0';
+                    document.getElementById('textCustomUrl').value = '';
                     document.getElementById('charCount').textContent = '0 字符';
 
                     // 添加到存储列表并更新统计
@@ -493,11 +496,79 @@ function initAdminPanel() {
     const sidebar = document.getElementById('sidebar');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     const closeSidebarBtn = document.getElementById('closeSidebar');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const textUploadBtn = document.getElementById('textUploadBtn');
+    const fileUploadBtn = document.getElementById('fileUploadBtn');
 
-    function openSidebar() {
+    // 初始化开关状态
+    async function initSwitchStates() {
+        try {
+            const response = await fetch('/api/admin/settings');
+            const data = await response.json();
+            if (data.success) {
+                textUploadBtn.checked = data.settings.textUploadEnabled;
+                fileUploadBtn.checked = data.settings.fileUploadEnabled;
+            }
+        } catch (error) {
+            console.error('获取设置失败:', error);
+            showToast('获取设置失败', 'error');
+        }
+    }
+
+    // 更新开关状态
+    async function updateSwitchState(type, enabled) {
+        try {
+            const response = await fetch('/api/admin/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Id': localStorage.getItem('sessionId')
+                },
+                body: JSON.stringify({
+                    type,
+                    enabled
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                showToast(`${type === 'text' ? '文本' : '文件'}上传功能已${enabled ? '开启' : '关闭'}`, 'success');
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (error) {
+            console.error('更新设置失败:', error);
+            showToast('更新设置失败', 'error');
+            // 恢复开关状态
+            if (type === 'text') {
+                textUploadBtn.checked = !enabled;
+            } else {
+                fileUploadBtn.checked = !enabled;
+            }
+        }
+    }
+
+    // 监听开关变化
+    textUploadBtn.addEventListener('change', () => {
+        updateSwitchState('text', textUploadBtn.checked);
+    });
+
+    fileUploadBtn.addEventListener('change', () => {
+        updateSwitchState('file', fileUploadBtn.checked);
+    });
+
+    async function openSidebar() {
+        // 先显示登录对话框
+        const isLoggedIn = await showLoginDialog();
+        if (!isLoggedIn) return;
+
+        // 登录成功后显示侧边栏
         sidebar.classList.add('active');
         sidebarOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
+        
+        // 开关状态
+        initSwitchStates();
     }
 
     function closeSidebar() {
@@ -514,11 +585,71 @@ function initAdminPanel() {
     closeSidebarBtn.addEventListener('click', closeSidebar);
     sidebarOverlay.addEventListener('click', closeSidebar);
 
+    // 添加退出登录功能
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            const sessionId = localStorage.getItem('sessionId');
+            if (sessionId) {
+                try {
+                    await fetch('/api/admin/logout', {
+                        method: 'POST',
+                        headers: {
+                            'X-Session-Id': sessionId
+                        }
+                    });
+                    localStorage.removeItem('sessionId');
+                    closeSidebar();
+                    showToast('已退出登录', 'success');
+                } catch (error) {
+                    console.error('退出登录失败:', error);
+                    showToast('退出登录失败', 'error');
+                }
+            }
+        });
+    }
+
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && sidebar.classList.contains('active')) {
             closeSidebar();
         }
     });
+}
+
+// 在提交文本和文件之前验证功能是否开启
+async function checkUploadEnabled(type) {
+    try {
+        const response = await fetch('/api/admin/settings');
+        const data = await response.json();
+        if (data.success) {
+            const enabled = type === 'text' ? data.settings.textUploadEnabled : data.settings.fileUploadEnabled;
+            if (!enabled) {
+                showToast(`${type === 'text' ? '文本' : '文件'}上传功能已关闭`, 'error');
+                return false;
+            }
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('验证上传权限失败:', error);
+        showToast('验证上传权限失败', 'error');
+        return false;
+    }
+}
+
+// 修改文本提交处理函数
+async function submitTextHandler() {
+    if (!await checkUploadEnabled('text')) {
+        return;
+    }
+    // ... 原有的文本提交代码 ...
+}
+
+// 修改文件提交处理函数
+async function submitFileHandler() {
+    if (!await checkUploadEnabled('file')) {
+        return;
+    }
+    // ... 原有的文件提交代码 ...
 }
 
 // 编辑器功能初始化
@@ -530,7 +661,89 @@ function initEditor() {
     const fullscreenBtn = document.querySelector('.fullscreen-btn');
     const textContent = document.getElementById('textContent');
     const splitEditor = document.querySelector('.split-editor textarea');
+    const splitPreview = document.querySelector('.split-preview .preview-content');
     const charCount = document.getElementById('charCount');
+    
+    // 恢复草稿
+    const savedDraft = localStorage.getItem('cloudpaste_draft');
+    if (savedDraft) {
+        textContent.value = savedDraft;
+        splitEditor.value = savedDraft;
+        updatePreview();
+        const count = savedDraft.length;
+        charCount.textContent = `${count} 字符`;
+    }
+
+    // 自动保存计时器
+    let autoSaveTimer;
+    
+    // 自动保存函数
+    function autosave() {
+        const content = textContent.value;
+        localStorage.setItem('cloudpaste_draft', content);
+    }
+
+    // 监听输入事件，延迟保存
+    textContent.addEventListener('input', () => {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(autosave, 1000); // 1秒后保存
+        syncEditors(textContent, splitEditor);
+    });
+
+    // 页面关闭前保存
+    window.addEventListener('beforeunload', () => {
+        autosave();
+    });
+
+    // 成功分享后清除草稿
+    document.getElementById('submitText').addEventListener('click', async () => {
+        // 等待分享完成
+        try {
+            await submitTextHandler();
+            localStorage.removeItem('cloudpaste_draft');
+        } catch (error) {
+            console.error('分享失败:', error);
+        }
+    });
+    
+    // 同步滚动功能
+    let isLeftScrolling = false;
+    let isRightScrolling = false;
+    
+    // 计算滚动比例
+    function getScrollRatio(element) {
+        const scrollTop = element.scrollTop;
+        const scrollHeight = element.scrollHeight - element.clientHeight;
+        return scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+    }
+    
+    // 设置滚动位置
+    function setScrollRatio(element, ratio) {
+        const scrollHeight = element.scrollHeight - element.clientHeight;
+        element.scrollTop = scrollHeight * ratio;
+    }
+    
+    // 左侧编辑器滚动事件
+    splitEditor.addEventListener('scroll', () => {
+        if (!isRightScrolling && document.querySelector('.split-view.active')) {
+            isLeftScrolling = true;
+            const ratio = getScrollRatio(splitEditor);
+            setScrollRatio(splitPreview, ratio);
+            setTimeout(() => {
+                isLeftScrolling = false;
+            }, 50);
+        }
+    });
+    
+    // 右侧预览滚动事件
+    splitPreview.addEventListener('scroll', () => {
+        if (!isLeftScrolling) {
+            isRightScrolling = true;
+            setTimeout(() => {
+                isRightScrolling = false;
+            }, 50);
+        }
+    });
     
     // 同步主编辑器和分屏编辑器的内容
     function syncEditors(source, target) {
@@ -683,6 +896,19 @@ function handleToolbarAction(action, textarea) {
             textarea.value = '';
             updatePreview();
             return;
+        case 'math':
+            if (selection) {
+                replacement = `\n\`\`\`math\n${selection}\n\`\`\`\n`;
+                cursorOffset = 0;
+            } else {
+                replacement = `\n\`\`\`math\nE = mc^2\n\`\`\`\n`;
+                cursorOffset = -4;
+            }
+            break;
+        case 'inline-math':
+            replacement = `$${selection || 'E = mc^2'}$`;
+            cursorOffset = selection ? 0 : -1;
+            break;
     }
     
     // 插入文本
@@ -703,10 +929,50 @@ function handleToolbarAction(action, textarea) {
 function updatePreview() {
     const textContent = document.getElementById('textContent');
     const previewContents = document.querySelectorAll('.preview-content');
+    
+    // 配置marked以支持KaTeX
+    const renderer = new marked.Renderer();
+    const originalCode = renderer.code.bind(renderer);
+    
+    renderer.code = (code, language) => {
+        if (language === 'math' || language === 'tex') {
+            try {
+                const tex = code.replace(/\n/g, ' ').trim();
+                return katex.renderToString(tex, {
+                    displayMode: true,
+                    throwOnError: false
+                });
+            } catch (error) {
+                console.error('KaTeX渲染错误:', error);
+                return `<pre><code class="error">KaTeX渲染错误: ${error.message}</code></pre>`;
+            }
+        }
+        return originalCode(code, language);
+    };
+
+    // 配置marked选项
+    marked.setOptions({
+        renderer: renderer,
+        breaks: true,
+        gfm: true
+    });
+
+    // 渲染Markdown内容
     const html = marked.parse(textContent.value);
     
     previewContents.forEach(preview => {
         preview.innerHTML = html;
+        
+        // 渲染行内数学公式
+        renderMathInElement(preview, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });
     });
 }
 
@@ -745,47 +1011,26 @@ function createShareItem(share) {
     const icon = isFile ? getFileIconByName(share.originalname || share.filename || share.id) : 'fa-file-alt';
     const expirationTime = share.expiration ? new Date(share.expiration).toLocaleString() : '永不过期';
     const createdTime = share.createdAt ? new Date(share.createdAt).toLocaleString() : '未知时间';
-    const size = isFile ? formatFileSize(share.size) : '-';
     const displayId = (share.id || '').split('-')[0];
 
-    if (isFile) {
-        return `
-            <div class="share-item" data-id="${share.id}" data-type="file">
-                <div class="share-item-info">
-                    <div class="share-item-line">ID: <span class="share-id" title="点击查看分享" onclick="window.location.href='/s/${share.id}'">${displayId}</span></div>
-                    <div class="share-item-line">文件名: ${share.originalname || share.filename}</div>
-                    <div class="share-item-line">创建时间: ${createdTime}</div>
-                    <div class="share-item-line">过期时间: ${expirationTime}</div>
-                </div>
-                <div class="share-item-actions">
-                    <button class="share-item-btn copy" title="复制链接">
-                        <i class="fas fa-link"></i>
-                    </button>
-                    <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', 'r2')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
+    return `
+        <div class="share-item" data-id="${share.id}" data-type="${share.type}">
+            <div class="share-item-info">
+                <div class="share-item-line">ID: <span class="share-id" title="点击查看分享" onclick="window.location.href='/s/${share.id}'">${displayId}</span></div>
+                <div class="share-item-line">文件名: ${isFile ? (share.originalname || share.filename) : (share.filename || 'CloudPaste-Text')}</div>
+                <div class="share-item-line">创建时间: ${createdTime}</div>
+                <div class="share-item-line">过期时间: ${expirationTime}</div>
             </div>
-        `;
-    } else {
-        return `
-            <div class="share-item" data-id="${share.id}" data-type="text">
-                <div class="share-item-info">
-                    <div class="share-item-line">ID: <span class="share-id" title="点击查看分享" onclick="window.location.href='/s/${share.id}'">${displayId}</span></div>
-                    <div class="share-item-line">创建时间: ${createdTime}</div>
-                    <div class="share-item-line">过期时间: ${expirationTime}</div>
-                </div>
-                <div class="share-item-actions">
-                    <button class="share-item-btn copy" title="复制链接">
-                        <i class="fas fa-link"></i>
-                    </button>
-                    <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', 'kv')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
+            <div class="share-item-actions">
+                <button class="share-item-btn copy" title="复制链接">
+                    <i class="fas fa-link"></i>
+                </button>
+                <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', '${share.type}')">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
-        `;
-    }
+        </div>
+    `;
 }
 
 function getFileIconByName(fileName) {
@@ -1479,7 +1724,7 @@ function addStorageItemEventListeners(container = document) {
         btn.addEventListener('click', async (e) => {
             const item = e.target.closest('.share-item');
             const id = item.getAttribute('data-id');
-            const shareUrl = `${window.location.origin}/share/${id}`;
+            const shareUrl = `${window.location.origin}/s/${id}`;
             try {
                 await navigator.clipboard.writeText(shareUrl);
                 const copyBtn = e.target.closest('.share-item-btn');
@@ -1785,8 +2030,15 @@ function showConfirmDialog(message, warningText) {
         const cancelBtn = dialog.querySelector('.confirm-dialog-btn.cancel');
         
         function close(result) {
-            overlay.remove();
-            resolve(result);
+            // 添加关闭动画
+            dialog.style.transform = 'translateX(100%)';
+            dialog.style.opacity = '0';
+            
+            // 等待动画完成后移除元素
+            setTimeout(() => {
+                overlay.remove();
+                resolve(result);
+            }, 300);
         }
         
         confirmBtn.addEventListener('click', () => close(true));
@@ -1804,6 +2056,14 @@ function showConfirmDialog(message, warningText) {
                 close(false);
             }
         });
+        
+        // 阻止对话框上的点击事件冒泡到遮罩层
+        dialog.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        // 自动聚焦用户名输入框
+        usernameInput.focus();
     });
 }
 
@@ -1940,4 +2200,180 @@ function showToast(message = '内容已复制到剪贴板', duration = 2000) {
     toast.hideTimeout = setTimeout(() => {
         toast.classList.remove('show');
     }, duration);
+}
+
+// 显示登录对话框
+function showLoginDialog() {
+    return new Promise((resolve) => {
+        // 检查是否已经有会话
+        const sessionId = localStorage.getItem('sessionId');
+        if (sessionId) {
+            // 验证会话是否有效
+            fetch('/api/admin/session', {
+                headers: {
+                    'X-Session-Id': sessionId
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resolve(true);
+                    return;
+                }
+                // 会话无效，删除本地存储的会话ID
+                localStorage.removeItem('sessionId');
+                showLoginForm();
+            })
+            .catch(() => {
+                localStorage.removeItem('sessionId');
+                showLoginForm();
+            });
+        } else {
+            showLoginForm();
+        }
+
+        function showLoginForm() {
+            const overlay = document.createElement('div');
+            overlay.className = 'login-dialog-overlay';
+        
+        overlay.innerHTML = `
+            <div class="login-dialog">
+                <h3>管理员登录</h3>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="loginUsername" placeholder="请输入用户名">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <div class="password-input-container">
+                    <input type="password" id="loginPassword" placeholder="请输入密码">
+                        <button type="button" class="password-toggle-btn" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="login-dialog-buttons">
+                    <button class="login-dialog-btn login">登录</button>
+                    <button class="login-dialog-btn cancel">取消</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        const dialog = overlay.querySelector('.login-dialog');
+        const loginBtn = dialog.querySelector('.login-dialog-btn.login');
+        const cancelBtn = dialog.querySelector('.login-dialog-btn.cancel');
+        const usernameInput = dialog.querySelector('#loginUsername');
+        const passwordInput = dialog.querySelector('#loginPassword');
+        const toggleBtn = dialog.querySelector('.password-toggle-btn');
+
+        // 定义登录函数
+        async function handleLogin() {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+            
+            if (!username || !password) {
+                alert('请输入用户名和密码');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                        // 保存会话ID到本地存储
+                        localStorage.setItem('sessionId', data.data.sessionId);
+                    close(true);
+                } else {
+                    alert(data.message || '登录失败');
+                }
+            } catch (error) {
+                alert('登录失败：' + error.message);
+            }
+        }
+        
+        function close(result) {
+                overlay.remove();
+                resolve(result);
+        }
+        
+        // 登录按钮点击事件
+        loginBtn.addEventListener('click', handleLogin);
+        
+        // 添加回车键登录
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleLogin();
+            }
+        }
+        
+        // 为用户名和密码输入框添加回车键事件
+        usernameInput.addEventListener('keypress', handleKeyPress);
+        passwordInput.addEventListener('keypress', handleKeyPress);
+        
+        cancelBtn.addEventListener('click', () => close(false));
+        
+        // ESC 键关闭
+        document.addEventListener('keydown', function escListener(e) {
+            if (e.key === 'Escape') {
+                document.removeEventListener('keydown', escListener);
+                close(false);
+            }
+        });
+        
+        // 阻止对话框上的点击事件冒泡到遮罩层
+        dialog.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        // 自动聚焦用户名输入框
+        usernameInput.focus();
+        
+        toggleBtn.addEventListener('click', () => {
+            const type = passwordInput.type === 'password' ? 'text' : 'password';
+            passwordInput.type = type;
+            
+            // 更新图标
+            const icon = toggleBtn.querySelector('i');
+            icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+            
+            // 更新提示文本
+            toggleBtn.title = type === 'password' ? '显示密码' : '隐藏密码';
+        });
+        }
+    });
+}
+
+// 初始化密码显示/隐藏功能
+function initPasswordToggle() {
+    const passwordContainers = document.querySelectorAll('.password-input-container');
+    
+    passwordContainers.forEach(container => {
+        const input = container.querySelector('input[type="password"]');
+        const toggleBtn = container.querySelector('.password-toggle-btn');
+        
+        if (input && toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                const type = input.type === 'password' ? 'text' : 'password';
+                input.type = type;
+                
+                // 更新图标
+                const icon = toggleBtn.querySelector('i');
+                icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+                
+                // 更新提示文本
+                toggleBtn.title = type === 'password' ? '显示密码' : '隐藏密码';
+            });
+        }
+    });
 } 

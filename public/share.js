@@ -488,10 +488,113 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// 页面加载时获取内容
-loadShareContent();
-
-// 编辑模式相关功能
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 获取DOM元素
+    const editBtn = document.getElementById('editBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const editMode = document.querySelector('.edit-mode');
+    const shareContentdiv = document.getElementById('shareContentdiv');
+    const shareContent = document.getElementById('shareContent');
+    const editContent = document.getElementById('editContent');
+    const previewContent = document.querySelector('.preview-pane .preview-content');
+    const previewModeBtn = document.getElementById('previewModeBtn');
+    
+    // 初始化marked配置
+    const renderer = new marked.Renderer();
+    
+    // 处理代码块
+    renderer.code = (code, language) => {
+        if (language === 'math' || language === 'tex') {
+            try {
+                return `<div class="math-block">${katex.renderToString(code, {
+                    displayMode: true,
+                    throwOnError: false,
+                    strict: false
+                })}</div>`;
+            } catch (error) {
+                console.error('KaTeX渲染错误:', error);
+                return `<pre class="error">KaTeX渲染错误: ${error.message}</pre>`;
+            }
+        }
+        
+        // 处理普通代码块
+        const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
+        const highlightedCode = hljs.highlight(code, { language: validLanguage }).value;
+        return `<pre><code class="hljs ${validLanguage}">${highlightedCode}</code></pre>`;
+    };
+    
+    // 处理行内代码
+    renderer.codespan = (code) => {
+        if (code.startsWith('$') && code.endsWith('$')) {
+            try {
+                const tex = code.slice(1, -1);
+                return katex.renderToString(tex, {
+                    displayMode: false,
+                    throwOnError: false,
+                    strict: false
+                });
+            } catch (error) {
+                console.error('KaTeX行内公式渲染错误:', error);
+                return `<code class="error">KaTeX错误: ${error.message}</code>`;
+            }
+        }
+        return `<code>${code}</code>`;
+    };
+    
+    // 配置marked选项
+    marked.setOptions({
+        renderer: renderer,
+        highlight: (code, lang) => {
+            if (lang && hljs.getLanguage(lang)) {
+                return hljs.highlight(code, { language: lang }).value;
+            }
+            return hljs.highlightAuto(code).value;
+        },
+        breaks: true,
+        gfm: true,
+        headerIds: true,
+        mangle: false
+    });
+    
+    // 实时预览更新函数
+    function updatePreview() {
+        try {
+            const editContent = document.getElementById('editContent');
+            const previewContent = document.querySelector('.preview-pane .preview-content');
+            
+            if (!editContent || !previewContent) {
+                console.error('找不到编辑器或预览区域元素');
+                return;
+            }
+            
+            // 渲染Markdown内容
+            const markdown = editContent.value || '';
+            const html = marked.parse(markdown);
+            previewContent.innerHTML = html;
+            
+            // 渲染数学公式
+            renderMathInElement(previewContent, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\(', right: '\\)', display: false},
+                    {left: '\\[', right: '\\]', display: true}
+                ],
+                throwOnError: false,
+                strict: false,
+                trust: true
+            });
+            
+        } catch (error) {
+            console.error('预览更新错误:', error);
+            const previewContent = document.querySelector('.preview-pane .preview-content');
+            if (previewContent) {
+                previewContent.innerHTML = `<div class="error">预览更新失败: ${error.message}</div>`;
+            }
+        }
+    }
 
 // 切换到编辑模式
 editBtn.addEventListener('click', () => {
@@ -499,21 +602,30 @@ editBtn.addEventListener('click', () => {
     isPreviewMode = false;
     previewModeBtn.classList.remove('active');
     
+        // 设置编辑内容
     editContent.value = shareContent.value;
     shareContentdiv.style.display = 'none';    
     shareContent.style.display = 'none';
     editMode.style.display = 'block';
+        
     // 添加编辑状态样式
     editBtn.classList.add('editing');
-    // 清空历史记录
-    undoStack = [];
-    redoStack = [];
+        
+        // 初始化同步滚动
+        initSyncScroll();
+        
+        // 绑定预览更新事件
+        editContent.addEventListener('input', () => {
+            updatePreview();
+            saveHistory();
+        });
+        
+        // 立即更新一次预览
+        updatePreview();
+    });
     
-    // 允许编辑可访问次数和过期时间
-    const viewCountInput = document.getElementById('viewCount');
-    const expireTimeInput = document.getElementById('expireTime');
-    viewCountInput.removeAttribute('readonly');
-    expireTimeInput.removeAttribute('readonly');
+    // 加载分享内容
+    loadShareContent();
 });
 
 // 取消编辑
@@ -600,66 +712,6 @@ saveBtn.addEventListener('click', async () => {
     }
 });
 
-// 配置marked选项
-marked.setOptions({
-    highlight: function(code, lang) {
-        if (lang && hljs.getLanguage(lang)) {
-            return hljs.highlight(code, { language: lang }).value;
-        }
-        return hljs.highlightAuto(code).value;
-    },
-    breaks: true,
-    gfm: true,
-    headerIds: true,
-    mangle: false
-});
-
-// 实时预览
-function updatePreview() {
-    try {
-        const markdown = editContent.value;
-        const html = marked.parse(markdown);
-        
-        // 根据不同模式更新不同的预览区域
-        if (editMode.style.display === 'block') {
-            // 编辑模式下，更新编辑器内的预览区域
-            const editPreview = editMode.querySelector('.preview-content');
-            if (editPreview) {
-                editPreview.innerHTML = html;
-                // 对新内容应用代码高亮
-                editPreview.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightBlock(block);
-                });
-            }
-        } else {
-            // 预览模式下，更新主预览区域
-            const previewContent = document.getElementById('previewContent');
-            if (previewContent) {
-                previewContent.innerHTML = html;
-                // 对新内容应用代码高亮
-                previewContent.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightBlock(block);
-                });
-            }
-        }
-    } catch (error) {
-        console.error('Markdown渲染错误:', error);
-        const errorMessage = '<div class="error">Markdown渲染错误</div>';
-        
-        if (editMode.style.display === 'block') {
-            const editPreview = editMode.querySelector('.preview-content');
-            if (editPreview) {
-                editPreview.innerHTML = errorMessage;
-            }
-        } else {
-            const previewContent = document.getElementById('previewContent');
-            if (previewContent) {
-                previewContent.innerHTML = errorMessage;
-            }
-        }
-    }
-}
-
 // 保存编辑历史
 function saveHistory() {
     undoStack.push(editContent.value);
@@ -687,6 +739,8 @@ document.querySelectorAll('.toolbar-btn').forEach(btn => {
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
         const selectedText = textarea.value.substring(start, end);
+        const previewContent = document.querySelector('.preview-pane .preview-content');
+
         
         let newText = '';
         switch (command) {
@@ -734,9 +788,17 @@ document.querySelectorAll('.toolbar-btn').forEach(btn => {
                 newText = `| 表头1 | 表头2 |\n| --- | --- |\n| 内容1 | 内容2 |`;
                 break;
             case '清空':
-                if (confirm('确定要清空所有内容吗？')) {
+                if (confirm('确定要清空编辑器内容吗？此操作不可撤销。')) {
+                    // 保存当前内容到撤销栈
+                    saveHistory();
+                    // 清空编辑器内容
                     textarea.value = '';
-                    updatePreview();
+                    previewContent.innerHTML ='';
+                    // 手动触发input事件以确保预览更新
+                    // textarea.dispatchEvent(new Event('input', {
+                    //     bubbles: true,
+                    //     cancelable: true
+                    // }));
                 }
                 return;
             case '全屏编辑':
@@ -746,8 +808,11 @@ document.querySelectorAll('.toolbar-btn').forEach(btn => {
         
         if (newText) {
             textarea.value = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
-            updatePreview();
-            saveHistory();
+            // 手动触发input事件
+            textarea.dispatchEvent(new Event('input', {
+                bubbles: true,
+                cancelable: true
+            }));
             textarea.focus();
             textarea.selectionStart = start;
             textarea.selectionEnd = start + newText.length;
@@ -760,7 +825,11 @@ undoBtn.addEventListener('click', () => {
     if (undoStack.length > 0) {
         redoStack.push(editContent.value);
         editContent.value = undoStack.pop();
-        updatePreview();
+        // 手动触发input事件
+        editContent.dispatchEvent(new Event('input', {
+            bubbles: true,
+            cancelable: true
+        }));
         updateUndoRedoButtons();
     }
 });
@@ -770,7 +839,11 @@ redoBtn.addEventListener('click', () => {
     if (redoStack.length > 0) {
         undoStack.push(editContent.value);
         editContent.value = redoStack.pop();
-        updatePreview();
+        // 手动触发input事件
+        editContent.dispatchEvent(new Event('input', {
+            bubbles: true,
+            cancelable: true
+        }));
         updateUndoRedoButtons();
     }
 });
@@ -875,7 +948,6 @@ document.getElementById('downloadBtn').addEventListener('click', async () => {
 // 获取分享统计数据
 async function fetchShareStats() {
     try {
-        console.log('开始获取统计数据');
         // 获取存储列表数据
         const storageResponse = await fetch('/api/file');
         if (!storageResponse.ok) {
@@ -899,13 +971,13 @@ async function fetchShareStats() {
                 if (storageData.data.kv && Array.isArray(storageData.data.kv)) {
                     // 过滤掉系统生成的临时文件
                     const validKvShares = storageData.data.kv.filter(item => {
-                        return item.type === 'text' && !item.name.startsWith('temp_');
+                        return item && item.type === 'text' && item.name && !item.name.startsWith('temp_');
                     });
                     stats.totalShares += validKvShares.length;
                     stats.activeShares += validKvShares.length;
                     // 估算文本存储大小
                     validKvShares.forEach(item => {
-                        if (item.content) {
+                        if (item && item.content) {
                             stats.usedStorage += item.content.length;
                         }
                     });
@@ -915,59 +987,32 @@ async function fetchShareStats() {
                 if (storageData.data.r2 && Array.isArray(storageData.data.r2)) {
                     // 过滤掉没有原始文件名的文件和系统生成的临时文件
                     const validR2Shares = storageData.data.r2.filter(item => {
-                        return item.originalname && !item.filename.startsWith('temp_');
+                        return item && item.originalname && item.filename && !item.filename.startsWith('temp_');
                     });
                     stats.totalShares += validR2Shares.length;
                     stats.activeShares += validR2Shares.length;
                     // 累加文件大小
                     validR2Shares.forEach(item => {
-                        if (item.filesize) {
+                        if (item && item.filesize) {
                             stats.usedStorage += item.filesize;
                         }
                     });
                 }
             }
             
-            // 更新统计数据显示
-            document.getElementById('totalShares').textContent = stats.totalShares;
-            document.getElementById('activeShares').textContent = stats.activeShares;
-            document.getElementById('usedStorage').textContent = formatFileSize(stats.usedStorage);
-            document.getElementById('totalStorage').textContent = formatFileSize(totalStorage);
-            
-            // 计算并更新使用百分比
+            // 计算使用百分比
             const usagePercent = (stats.usedStorage / totalStorage * 100).toFixed(1);
-            document.getElementById('usagePercent').textContent = `${usagePercent}%`;
             
-            // 更新进度条
-            const progressBar = document.querySelector('.usage-progress');
-            if (progressBar) {
-                progressBar.style.width = `${usagePercent}%`;
-                
-                // 根据使用比例设置状态样式
-                progressBar.className = 'usage-progress';
-                if (usagePercent >= 90) {
-                    progressBar.classList.add('danger');
-                } else if (usagePercent >= 70) {
-                    progressBar.classList.add('warning');
-                }
-            }
-            
-            // 更新存储状态标签
-            const storageUsage = document.querySelector('.storage-usage');
-            if (storageUsage) {
-                storageUsage.className = 'storage-usage';
-                if (usagePercent >= 90) {
-                    storageUsage.classList.add('danger');
-                } else if (usagePercent >= 70) {
-                    storageUsage.classList.add('warning');
-                }
-            }
-            
-            console.log('统计数据更新完成:', stats);
+            // 返回统计结果
+            return {
+                ...stats,
+                totalStorage,
+                usagePercent: parseFloat(usagePercent)
+            };
         }
     } catch (error) {
         console.error('获取统计数据失败:', error);
-        showToast('获取统计数据失败', 'error');
+        showToast('获取统计数据失败', 3000);
     }
 }
 
@@ -1030,6 +1075,81 @@ function displayStorageList(data, newItem = null) {
 
     // 添加事件监听器
     addStorageItemEventListeners();
+}
+
+// 同步滚动功能
+let isEditorScrolling = false;
+let isPreviewScrolling = false;
+
+function initSyncScroll() {
+    const editContent = document.getElementById('editContent');
+    const previewContent = document.querySelector('.preview-pane .preview-content');
+    
+    if (!editContent || !previewContent) {
+        console.error('找不到编辑器或预览区域元素');
+        return;
+    }
+    
+    // 计算滚动比例
+    function getScrollRatio(element) {
+        const scrollHeight = element.scrollHeight - element.clientHeight;
+        return scrollHeight <= 0 ? 0 : element.scrollTop / scrollHeight;
+    }
+    
+    // 设置滚动位置
+    function setScrollRatio(element, ratio) {
+        const scrollHeight = element.scrollHeight - element.clientHeight;
+        if (scrollHeight > 0) {
+            element.scrollTop = ratio * scrollHeight;
+        }
+    }
+    
+    // 防抖函数
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // 编辑器滚动处理
+    const handleEditorScroll = debounce(() => {
+        if (!isPreviewScrolling) {
+            isEditorScrolling = true;
+            const ratio = getScrollRatio(editContent);
+            setScrollRatio(previewContent, ratio);
+            setTimeout(() => {
+                isEditorScrolling = false;
+            }, 50);
+        }
+    }, 10);
+    
+    // 预览区域滚动处理
+    const handlePreviewScroll = debounce(() => {
+        if (!isEditorScrolling) {
+            isPreviewScrolling = true;
+            setTimeout(() => {
+                isPreviewScrolling = false;
+            }, 50);
+        }
+    }, 10);
+    
+    // 添加滚动事件监听
+    editContent.addEventListener('scroll', handleEditorScroll);
+    previewContent.addEventListener('scroll', handlePreviewScroll);
+    
+    // 窗口大小改变时重新计算滚动位置
+    window.addEventListener('resize', debounce(() => {
+        if (!isPreviewScrolling) {
+            const ratio = getScrollRatio(editContent);
+            setScrollRatio(previewContent, ratio);
+        }
+    }, 100));
 }
 
 

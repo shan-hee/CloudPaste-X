@@ -194,6 +194,9 @@ jobs:
         uses: cloudflare/wrangler-action@2.0.0
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
+          preCommands: |
+            npm install
+            npm run build
           command: deploy --var ADMIN_USERNAME:${{ secrets.ADMIN_USERNAME }} --var ADMIN_PASSWORD:${{ secrets.ADMIN_PASSWORD }}
         env:
           ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}

@@ -2,7 +2,6 @@
 
 CloudPaste-SH 是一个现代化的在线文本分享平台，支持 Markdown 编辑和实时预览功能。它提供了一个简洁优雅的界面，让用户可以轻松地分享和管理文本内容。
 
-<<<<<<< HEAD
 ## 项目说明
 
 - 项目使用 [Vite](https://vitejs.dev/) 构建，使用纯 JavaScript 开发。
@@ -86,7 +85,6 @@ CloudPaste-SH 是一个现代化的在线文本分享平台，支持 Markdown �
 
 - Node.js >= 14
 - npm >= 6
->>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 
 ### 安装步骤
 
@@ -98,7 +96,6 @@ cd CloudPaste-SH
 
 2. 安装依赖
 ```bash
-<<<<<<< HEAD
 npm install
 ```
 
@@ -144,7 +141,6 @@ npm run dev
 # 生产模式
 npm run build
 npm start
->>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 ```
 
 ## 🔧 配置说明
@@ -191,20 +187,17 @@ npm start
 ```
 CloudPaste-SH/
 ├── public/          # 静态资源
-<<<<<<< HEAD
 ├── src/             # Worker 源码
 ├── wrangler.toml    # Cloudflare Workers 配置
 =======
 ├── server/          # 服务端代码
 ├── src/             # 客户端源码
 ├── tests/           # 测试文件
->>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 └── package.json     # 项目配置
 ```
 
 ### 技术栈
 
-<<<<<<< HEAD
 - 前端：HTML5, CSS3, JavaScript (原生)
 - 后端：Cloudflare Workers
 - 部署：Cloudflare Pages + Workers
@@ -213,7 +206,6 @@ CloudPaste-SH/
 - 后端：Node.js, Express
 - 存储：MongoDB/SQLite
 - 部署：Docker 支持
->>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 
 ## 🤝 贡献指南
 
@@ -230,11 +222,7 @@ CloudPaste-SH/
 ## 🙏 致谢
 
 感谢所有为这个项目做出贡献的开发者。
-<<<<<<< HEAD
 
 ## 感谢原作者
 
 感谢原作者 [ling-drag0n](https://github.com/ling-drag0n) 的贡献。
-
-=======
->>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4

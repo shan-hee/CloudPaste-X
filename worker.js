@@ -210,7 +210,6 @@ class FileHandler {
   }
 }
 
-<<<<<<< HEAD
 // 清理管理器类
 class CleanupManager {
   static async cleanExpiredContent(env) {
@@ -330,125 +329,6 @@ async function handleRequest(request, env, ctx) {
           return new Response(JSON.stringify({
             success: true,
             message: '更新成功',
-=======
-// 在 fetch 函数中添加书签路由处理
-async function handleRequest(request, env, ctx) {
-  const url = new URL(request.url);
-  
-  // 处理书签相关的API请求
-  if (url.pathname.startsWith('/api/bookmarks')) {
-    if (request.method === 'POST') {
-      if (url.pathname === '/api/bookmarks/undo') {
-        return await BookmarkHandler.undo(env);
-      } else if (url.pathname === '/api/bookmarks/redo') {
-        return await BookmarkHandler.redo(env);
-      } else if (url.pathname === '/api/bookmarks/clear-all') {
-        return await BookmarkHandler.clearAll(env);
-      } else {
-        return await BookmarkHandler.upload(request, env);
-      }
-    } else if (request.method === 'GET') {
-      if (url.pathname === '/api/bookmarks') {
-        return await BookmarkHandler.list(env);
-      } else {
-        return await BookmarkHandler.get(request, env);
-      }
-    }
-  }
-
-  // 处理文件上传
-  if (url.pathname === '/upload' && request.method === 'POST') {
-    return await FileHandler.upload(request, env);
-  }
-  
-  // 处理文件下载
-  if (url.pathname.startsWith('/download/')) {
-    return await FileHandler.download(request, env);
-  }
-  
-  // 处理分享内容相关的请求
-  if (url.pathname.startsWith('/s/')) {
-    const id = url.pathname.split('/').pop();
-    
-    // 处理 PUT 请求（更新内容）
-    if (request.method === 'PUT') {
-      try {
-        const data = await request.json();
-        const { content, maxViews } = data;
-
-        // 验证必需字段
-        if (!content) {
-          return new Response(JSON.stringify({
-            success: false,
-            message: '内容不能为空'
-          }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-
-        // 获取现有分享
-        const share = await env.CLOUD_PASTE.get(id);
-        if (!share) {
-          return new Response(JSON.stringify({
-            success: false,
-            message: '分享不存在或已过期'
-          }), {
-            status: 404,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-
-        const shareData = JSON.parse(share);
-        
-        // 只更新内容和最大访问次数
-        shareData.content = content;
-        if (typeof maxViews === 'number' && maxViews >= 0) {
-          shareData.maxViews = maxViews;
-        }
-        
-        // 保存更新后的内容
-        await env.CLOUD_PASTE.put(id, JSON.stringify(shareData));
-
-        return new Response(JSON.stringify({
-          success: true,
-          message: '更新成功',
-          data: {
-            content: shareData.content,
-            maxViews: shareData.maxViews
-          }
-        }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      } catch (error) {
-        return Utils.handleError(error);
-      }
-    }
-    
-    // 处理 GET 请求（获取内容）
-    if (request.method === 'GET') {
-      try {
-        const share = await env.CLOUD_PASTE.get(id);
-        if (!share) {
-          return new Response(JSON.stringify({
-            success: false,
-            message: '分享不存在或已过期'
-          }), {
-            status: 404,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-
-        const shareData = JSON.parse(share);
-        
-        // 检查是否是 API 请求
-        const isApiRequest = request.headers.get('accept')?.includes('application/json') || 
-                           request.headers.get('x-requested-with') === 'XMLHttpRequest';
-
-        if (isApiRequest) {
-          return new Response(JSON.stringify({
-            success: true,
->>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
             data: {
               content: shareData.content,
               maxViews: shareData.maxViews
@@ -456,7 +336,6 @@ async function handleRequest(request, env, ctx) {
           }), {
             headers: { 'Content-Type': 'application/json' }
           });
-<<<<<<< HEAD
         } catch (error) {
           return Utils.handleError(error);
         }
@@ -509,22 +388,6 @@ async function handleRequest(request, env, ctx) {
   } catch (error) {
     return Utils.handleError(error);
   }
-=======
-        }
-
-        // 返回 HTML 页面
-  return new Response(template, {
-    headers: { 'Content-Type': 'text/html;charset=UTF-8' }
-  });
-      } catch (error) {
-        return Utils.handleError(error);
-      }
-    }
-  }
-
-  // 返回 404
-  return new Response('Not Found', { status: 404 });
->>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 }
 
 // 基础样式
@@ -2317,7 +2180,6 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
 export default {
   async fetch(request, env, ctx) {
     return handleRequest(request, env, ctx);
-<<<<<<< HEAD
   },
   
   // 添加定时触发器
@@ -2328,9 +2190,5 @@ export default {
     console.log(`清理完成，共删除 ${deletedKeys.length} 个过期项目`);
   }
 }
-=======
-  }
-};
->>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 
 // ... rest of the existing code ...

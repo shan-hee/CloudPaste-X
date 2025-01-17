@@ -21,8 +21,8 @@ vars = { ENVIRONMENT = "development" }
 
 [[kv_namespaces]]
 binding = "CLOUDPASTE_KV"
-id = "temporary-id-12345"
-preview_id = "temporary-id-12345"
+id = "placeholder-id"
+preview_id = "placeholder-id"
 
 [[r2_buckets]]
 binding = "CLOUDPASTE_BUCKET"

@@ -122,12 +122,12 @@ jobs:
           
           # Update configuration
           sed -i \
-            -e "s/id = \"temporary-id-12345\"/id = \"$PASTE_STORE_ID\"/" \
-            -e "s/preview_id = \"temporary-id-12345\"/preview_id = \"$PASTE_STORE_ID\"/" \
+            -e "s/id = \"placeholder-id\"/id = \"$PASTE_STORE_ID\"/" \
+            -e "s/preview_id = \"placeholder-id\"/preview_id = \"$PASTE_STORE_ID\"/" \
             wrangler.toml
           
           echo "Updated wrangler.toml configuration:"
-          diff wrangler.toml.bak wrangler.toml || true
+          cat wrangler.toml
       
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@2.0.0

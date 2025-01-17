@@ -58,27 +58,32 @@ jobs:
             echo "Processing KV namespace: $namespace_title"
             
             echo "Listing KV namespaces..."
-            LIST_OUTPUT=$(wrangler kv:namespace list 2>/dev/null || echo "[]")
+            LIST_OUTPUT=$(wrangler kv:namespace list)
             echo "KV namespaces list output: $LIST_OUTPUT"
             
             if echo "$LIST_OUTPUT" | grep -q "$namespace_title"; then
-              KV_ID=$(echo "$LIST_OUTPUT" | grep "$namespace_title" | awk '{print $1}')
-              echo "KV namespace already exists with ID: $KV_ID"
+              # 提取已存在的 namespace ID
+              KV_ID=$(echo "$LIST_OUTPUT" | grep "$namespace_title" | awk -F ' ' '{print $3}')
+              echo "Found existing KV namespace with ID: $KV_ID"
             else
               echo "Creating KV namespace: $namespace_title"
               CREATE_OUTPUT=$(wrangler kv:namespace create "$namespace_title")
-              if [ $? -ne 0 ]; then
-                echo "Failed to create KV namespace: $namespace_title"
-                echo "Create output: $CREATE_OUTPUT"
-                exit 1
-              fi
+              echo "Create output: $CREATE_OUTPUT"
               
+              # 从创建输出中提取 ID
               KV_ID=$(echo "$CREATE_OUTPUT" | grep -o 'id = "[^"]*"' | cut -d'"' -f2)
-              if [ -z "$KV_ID" ]; then
-                echo "Failed to extract KV ID from create output"
-                exit 1
-              fi
               echo "Created KV namespace with ID: $KV_ID"
+            fi
+            
+            if [ -z "$KV_ID" ]; then
+              echo "Failed to get KV namespace ID"
+              exit 1
+            fi
+            
+            # 验证 ID 格式
+            if ! [[ $KV_ID =~ ^[0-9a-f]{32}$ ]]; then
+              echo "Invalid KV namespace ID format: $KV_ID"
+              exit 1
             fi
             
             echo "${namespace}_ID=$KV_ID" >> $GITHUB_ENV
@@ -87,6 +92,11 @@ jobs:
           
           create_kv_namespace "PASTE_STORE"
           create_kv_namespace "UPLOAD_STATUS"
+          
+          # 验证环境变量
+          echo "Verifying environment variables:"
+          echo "PASTE_STORE_ID: $PASTE_STORE_ID"
+          echo "UPLOAD_STATUS_ID: $UPLOAD_STATUS_ID"
       
       - name: Check and Create R2 Bucket
         run: |

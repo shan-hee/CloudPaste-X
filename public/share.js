@@ -653,6 +653,12 @@ editBtn.addEventListener('click', () => {
         // 初始化同步滚动
         initSyncScroll();
         
+        // 启用可访问次数和过期时间输入框
+        const viewCountInput = document.getElementById('viewCount');
+        const expireTimeInput = document.getElementById('expireTime');
+        viewCountInput.removeAttribute('readonly');
+        expireTimeInput.removeAttribute('readonly');
+        
         // 绑定预览更新事件
         editContent.addEventListener('input', () => {
             updatePreview();

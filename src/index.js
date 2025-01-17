@@ -42,6 +42,7 @@ app.get('/api/file', async (c) => {
                 id: item.id || item.name,
                 type: 'text',
                 content: item.content,
+                filename: item.filename || 'CloudPaste-Text',
                 expiration: item.expiresAt,
                 createdAt: item.createdAt || item.created || Date.now()
             }));

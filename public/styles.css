@@ -3151,6 +3151,11 @@ input:disabled + .slider {
     font-size: 14px;
 }
 
+/* 加载状态下隐藏空状态文字 */
+.share-items.loading:empty::before {
+    display: none;
+}
+
 /* 列表过滤切换动画 */
 .share-item {
     transition: all 0.3s ease;

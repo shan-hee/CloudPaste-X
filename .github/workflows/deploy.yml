@@ -53,29 +53,27 @@ jobs:
             echo "Processing KV namespace: $namespace_title"
             
             echo "Listing KV namespaces..."
-            LIST_OUTPUT=$(wrangler kv:namespace list --json || echo "[]")
+            LIST_OUTPUT=$(wrangler kv:namespace list 2>/dev/null || echo "[]")
             echo "KV namespaces list output: $LIST_OUTPUT"
             
-            KV_ID=$(echo "$LIST_OUTPUT" | jq -r --arg title "$namespace_title" '.[] | select(.title == $title) | .id')
-            echo "Found KV ID: $KV_ID"
-            
-            if [ -z "$KV_ID" ]; then
+            if echo "$LIST_OUTPUT" | grep -q "$namespace_title"; then
+              KV_ID=$(echo "$LIST_OUTPUT" | grep "$namespace_title" | awk '{print $1}')
+              echo "KV namespace already exists with ID: $KV_ID"
+            else
               echo "Creating KV namespace: $namespace_title"
-              CREATE_OUTPUT=$(wrangler kv:namespace create "$namespace_title" --json)
+              CREATE_OUTPUT=$(wrangler kv:namespace create "$namespace_title")
               if [ $? -ne 0 ]; then
                 echo "Failed to create KV namespace: $namespace_title"
                 echo "Create output: $CREATE_OUTPUT"
                 exit 1
               fi
               
-              KV_ID=$(echo "$CREATE_OUTPUT" | jq -r '.id')
+              KV_ID=$(echo "$CREATE_OUTPUT" | grep -o 'id = "[^"]*"' | cut -d'"' -f2)
               if [ -z "$KV_ID" ]; then
                 echo "Failed to extract KV ID from create output"
                 exit 1
               fi
               echo "Created KV namespace with ID: $KV_ID"
-            else
-              echo "KV namespace already exists with ID: $KV_ID"
             fi
             
             echo "${namespace}_ID=$KV_ID" >> $GITHUB_ENV

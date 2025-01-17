@@ -61,34 +61,39 @@ jobs:
             LIST_OUTPUT=$(wrangler kv:namespace list)
             echo "KV namespaces list output: $LIST_OUTPUT"
             
-            # 使用 jq 从 JSON 输出中提取 ID
+            # 首先尝试精确匹配
             KV_ID=$(echo "$LIST_OUTPUT" | jq -r --arg title "$namespace_title" '.[] | select(.title == $title) | .id')
             
+            # 如果没找到，尝试匹配带前缀的命名空间
+            if [ -z "$KV_ID" ]; then
+                KV_ID=$(echo "$LIST_OUTPUT" | jq -r --arg title "$namespace_title" '.[] | select(.title | endswith($title)) | .id')
+            fi
+            
             if [ ! -z "$KV_ID" ]; then
-              echo "Found existing KV namespace with ID: $KV_ID"
+                echo "Found existing KV namespace with ID: $KV_ID"
             else
-              echo "Creating KV namespace: $namespace_title"
-              CREATE_OUTPUT=$(wrangler kv:namespace create "$namespace_title")
-              echo "Create output: $CREATE_OUTPUT"
-              
-              # 从创建输出中提取 ID
-              KV_ID=$(echo "$CREATE_OUTPUT" | grep -o 'id = "[^"]*"' | cut -d'"' -f2)
-              if [ -z "$KV_ID" ]; then
-                # 尝试从 JSON 输出中提取
-                KV_ID=$(echo "$CREATE_OUTPUT" | jq -r '.id // empty')
-              fi
-              echo "Created KV namespace with ID: $KV_ID"
+                echo "Creating KV namespace: $namespace_title"
+                CREATE_OUTPUT=$(wrangler kv:namespace create "$namespace_title")
+                echo "Create output: $CREATE_OUTPUT"
+                
+                # 从创建输出中提取 ID
+                KV_ID=$(echo "$CREATE_OUTPUT" | grep -o 'id = "[^"]*"' | cut -d'"' -f2)
+                if [ -z "$KV_ID" ]; then
+                    # 尝试从 JSON 输出中提取
+                    KV_ID=$(echo "$CREATE_OUTPUT" | jq -r '.id // empty')
+                fi
+                echo "Created KV namespace with ID: $KV_ID"
             fi
             
             if [ -z "$KV_ID" ]; then
-              echo "Failed to get KV namespace ID"
-              exit 1
+                echo "Failed to get KV namespace ID"
+                exit 1
             fi
             
             # 验证 ID 格式
             if ! [[ $KV_ID =~ ^[0-9a-f]{32}$ ]]; then
-              echo "Invalid KV namespace ID format: $KV_ID"
-              exit 1
+                echo "Invalid KV namespace ID format: $KV_ID"
+                exit 1
             fi
             
             echo "${namespace}_ID=$KV_ID" >> $GITHUB_ENV

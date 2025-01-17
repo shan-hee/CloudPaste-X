@@ -27,6 +27,12 @@ jobs:
           npm ci
           npm install -g wrangler
       
+      - name: Configure Wrangler
+        run: |
+          mkdir -p ~/.wrangler
+          echo "CLOUDFLARE_API_TOKEN=${{ secrets.CF_API_TOKEN }}" > ~/.wrangler/config.toml
+          echo "CLOUDFLARE_ACCOUNT_ID=${{ secrets.CF_ACCOUNT_ID }}" >> ~/.wrangler/config.toml
+          
       - name: Cache Wrangler
         uses: actions/cache@v4
         with:
@@ -43,31 +49,37 @@ jobs:
           
           function create_kv_namespace() {
             local namespace=$1
-            echo "Processing KV namespace: $namespace"
+            local namespace_title="cloudpaste-$namespace"
+            echo "Processing KV namespace: $namespace_title"
             
-            LIST_OUTPUT=$(wrangler kv namespace list)
-            if [ $? -ne 0 ]; then
-              echo "Failed to list KV namespaces"
-              exit 1
-            fi
+            echo "Listing KV namespaces..."
+            LIST_OUTPUT=$(wrangler kv:namespace list --json || echo "[]")
+            echo "KV namespaces list output: $LIST_OUTPUT"
             
-            KV_ID=$(echo "$LIST_OUTPUT" | jq -r --arg title "cloudpaste-$namespace" '.[] | select(.title == $title) | .id')
+            KV_ID=$(echo "$LIST_OUTPUT" | jq -r --arg title "$namespace_title" '.[] | select(.title == $title) | .id')
+            echo "Found KV ID: $KV_ID"
             
             if [ -z "$KV_ID" ]; then
-              echo "Creating KV namespace: $namespace"
-              CREATE_OUTPUT=$(wrangler kv namespace create "cloudpaste-$namespace")
+              echo "Creating KV namespace: $namespace_title"
+              CREATE_OUTPUT=$(wrangler kv:namespace create "$namespace_title" --json)
               if [ $? -ne 0 ]; then
-                echo "Failed to create KV namespace: $namespace"
+                echo "Failed to create KV namespace: $namespace_title"
+                echo "Create output: $CREATE_OUTPUT"
                 exit 1
               fi
               
-              KV_ID=$(echo "$CREATE_OUTPUT" | sed -n 's/.*id = "\([^"]*\)".*/\1/p')
+              KV_ID=$(echo "$CREATE_OUTPUT" | jq -r '.id')
+              if [ -z "$KV_ID" ]; then
+                echo "Failed to extract KV ID from create output"
+                exit 1
+              fi
               echo "Created KV namespace with ID: $KV_ID"
             else
               echo "KV namespace already exists with ID: $KV_ID"
             fi
             
             echo "${namespace}_ID=$KV_ID" >> $GITHUB_ENV
+            echo "Set environment variable ${namespace}_ID=$KV_ID"
           }
           
           create_kv_namespace "PASTE_STORE"

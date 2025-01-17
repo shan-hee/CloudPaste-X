@@ -79,69 +79,63 @@ CloudPaste-SH 是一个现代化的在线文本分享平台，支持 Markdown �
 - 📤 导出为 PDF/PNG 格式
 - 🛡️ 安全的文本存储
 
-## 🚀 快速开始
+## 📦 部署指南
 
-### 环境要求
+### 🚀 一键部署
 
-- Node.js >= 14
-- npm >= 6
+点击下面的按钮，可以一键将项目部署到 Cloudflare Workers：
 
-### 安装步骤
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shan-hee/CloudPaste-SH)
 
-1. 克隆仓库
-```bash
-git clone https://github.com/shan-hee/CloudPaste-SH.git
-cd CloudPaste-SH
-```
+### 👷 GitHub Actions 自动部署
 
-2. 安装依赖
-```bash
-npm install
-```
+1. Fork 本仓库到你的 GitHub 账号下
 
-3. 安装 Wrangler
+2. 在 Cloudflare 获取你的 API Token：
+   - 登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
+   - 进入 "Workers & Pages" 
+   - 创建新的 API Token，确保有 Workers 部署权限
+
+3. 在你的 GitHub 仓库设置中添加以下 Secrets：
+   ```
+   CLOUDFLARE_API_TOKEN = "你的 API Token"
+   CLOUDFLARE_ACCOUNT_ID = "你的 Account ID"
+   ```
+
+4. 项目中已包含 GitHub Actions 配置文件，当你推送代码到 `main` 分支时，将自动触发部署。
+
+### 🔧 手动部署
+
+1. 安装 Wrangler CLI
 ```bash
 npm install -g wrangler
 ```
 
-4. 配置 Wrangler
+2. 登录到 Cloudflare
 ```bash
 wrangler login
 ```
 
-5. 开发和部署
+3. 构建项目
 ```bash
-# 本地开发
-npm run dev
-
-# 部署到 Cloudflare Workers
-npm run deploy
-=======
-# 安装主项目依赖
-npm install
-
-# 安装服务端依赖
-cd server
-npm install
-```
-
-3. 配置环境变量
-```bash
-# 复制示例配置文件
-cp .env.example .env
-
-# 编辑 .env 文件，设置必要的环境变量
-```
-
-4. 启动项目
-```bash
-# 开发模式
-npm run dev
-
-# 生产模式
 npm run build
-npm start
 ```
+
+4. 部署到 Cloudflare Workers
+```bash
+wrangler deploy
+```
+
+### 🔍 部署后配置
+
+1. 访问 [Cloudflare Dashboard](https://dash.cloudflare.com)
+2. 进入 "Workers & Pages" 部分
+3. 找到你部署的项目
+4. 可以在这里进行以下配置：
+   - 自定义域名绑定
+   - 环境变量设置
+   - 访问分析
+   - 其他高级设置
 
 ## 🔧 配置说明
 
@@ -221,3 +215,4 @@ CloudPaste-SH/
 ## 感谢原作者
 
 感谢原作者 [ling-drag0n](https://github.com/ling-drag0n) 的贡献。
+

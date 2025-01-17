@@ -1912,18 +1912,29 @@ body {
 }
 
 .filter-btn {
+<<<<<<< HEAD
     padding: 8px 16px;
     border: none;
     border-radius: 8px;
     background: transparent;
     color: var(--text-color);
     cursor: pointer;
+=======
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 13px;
+    border-radius: 6px;
+>>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
+<<<<<<< HEAD
 .filter-btn.active[data-type="text"] {
     background: rgba(74, 144, 226, 0.5);
 }
@@ -1940,6 +1951,8 @@ body {
     background: rgba(39, 174, 96, 0.55);
 }
 
+=======
+>>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 .filter-btn i {
     font-size: 14px;
     opacity: 0.7;
@@ -2662,18 +2675,30 @@ input:disabled + .slider {
 .share-item[data-type="text"] {
     background: linear-gradient(135deg, 
         var(--container-bg) 0%, 
+<<<<<<< HEAD
         rgba(74, 144, 226, 0.2) 100%
     );
     border-left: 3px solid rgba(74, 144, 226, 0.4);
+=======
+        rgba(74, 144, 226, 0.12) 100%
+    );
+    border-left: 3px solid rgba(74, 144, 226, 0.3);
+>>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 }
 
 /* 文件分享项的背景 */
 .share-item[data-type="file"] {
     background: linear-gradient(135deg, 
         var(--container-bg) 0%, 
+<<<<<<< HEAD
         rgba(39, 174, 96, 0.2) 100%
     );
     border-left: 3px solid rgba(39, 174, 96, 0.4);
+=======
+        rgba(39, 174, 96, 0.12) 100%
+    );
+    border-left: 3px solid rgba(39, 174, 96, 0.3);
+>>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 }
 
 .share-item-info {
@@ -2736,17 +2761,29 @@ input:disabled + .slider {
 [data-theme="dark"] .share-item[data-type="text"] {
     background: linear-gradient(135deg, 
         var(--container-bg) 0%, 
+<<<<<<< HEAD
         rgba(74, 144, 226, 0.25) 100%
     );
     border-left: 3px solid rgba(74, 144, 226, 0.5);
+=======
+        rgba(74, 144, 226, 0.15) 100%
+    );
+    border-left: 3px solid rgba(74, 144, 226, 0.4);
+>>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 }
 
 [data-theme="dark"] .share-item[data-type="file"] {
     background: linear-gradient(135deg, 
         var(--container-bg) 0%, 
+<<<<<<< HEAD
         rgba(39, 174, 96, 0.25) 100%
     );
     border-left: 3px solid rgba(39, 174, 96, 0.5);
+=======
+        rgba(39, 174, 96, 0.15) 100%
+    );
+    border-left: 3px solid rgba(39, 174, 96, 0.4);
+>>>>>>> b08449dc12c36efc269dd93bb0dbfe238f9804b4
 }
 
 [data-theme="dark"] .share-item[data-type="text"]:hover {

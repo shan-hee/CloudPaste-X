@@ -61,9 +61,10 @@ jobs:
             LIST_OUTPUT=$(wrangler kv:namespace list)
             echo "KV namespaces list output: $LIST_OUTPUT"
             
-            if echo "$LIST_OUTPUT" | grep -q "$namespace_title"; then
-              # 提取已存在的 namespace ID
-              KV_ID=$(echo "$LIST_OUTPUT" | grep "$namespace_title" | awk -F ' ' '{print $3}')
+            # 使用 jq 从 JSON 输出中提取 ID
+            KV_ID=$(echo "$LIST_OUTPUT" | jq -r --arg title "$namespace_title" '.[] | select(.title == $title) | .id')
+            
+            if [ ! -z "$KV_ID" ]; then
               echo "Found existing KV namespace with ID: $KV_ID"
             else
               echo "Creating KV namespace: $namespace_title"

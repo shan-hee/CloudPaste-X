@@ -67,7 +67,7 @@ CloudPaste-SH 是一个现代化的在线文本分享平台，支持 Markdown �
 - Node.js >= 16
 - npm >= 7
 - Wrangler CLI (Cloudflare Workers 命令行工具)
-=======
+
 ## ✨ 功能特点
 
 - 🎨 支持自动/明亮/暗黑主题切换
@@ -189,7 +189,6 @@ CloudPaste-SH/
 ├── public/          # 静态资源
 ├── src/             # Worker 源码
 ├── wrangler.toml    # Cloudflare Workers 配置
-=======
 ├── server/          # 服务端代码
 ├── src/             # 客户端源码
 ├── tests/           # 测试文件
@@ -201,11 +200,7 @@ CloudPaste-SH/
 - 前端：HTML5, CSS3, JavaScript (原生)
 - 后端：Cloudflare Workers
 - 部署：Cloudflare Pages + Workers
-=======
-- 前端：HTML5, CSS3, JavaScript
-- 后端：Node.js, Express
 - 存储：MongoDB/SQLite
-- 部署：Docker 支持
 
 ## 🤝 贡献指南
 

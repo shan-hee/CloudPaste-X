@@ -81,7 +81,7 @@ jobs:
           R2_BUCKET="cloudpaste-files"
           echo "Checking R2 bucket: $R2_BUCKET"
           
-          BUCKET_LIST=$(wrangler r2 bucket list)
+          BUCKET_LIST=$(wrangler r2 bucket list || echo "")
           if [ $? -ne 0 ]; then
             echo "Failed to list R2 buckets"
             exit 1

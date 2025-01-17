@@ -30,7 +30,7 @@ jobs:
           path: |
             ~/.wrangler
             ~/.npm
-          key: ${{ runner.os }}-wrangler-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-wrangler-${{ hashFiles('**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-wrangler-
       

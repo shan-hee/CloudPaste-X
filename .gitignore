@@ -1,0 +1,55 @@
+# 依赖目录
+node_modules/
+/.pnp
+.pnp.js
+
+# 构建输出
+/build
+/dist
+.wrangler/
+*.min.js
+*.min.css
+
+# 开发工具和IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 环境变量和配置
+.env
+.env.local
+.env.*
+!.env.example
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cloudflare Workers相关
+.dev.vars
+.wrangler/
+.cloudflare/
+
+# 临时文件
+.tmp/
+.temp/
+*.tmp
+*.temp
+cloudpaste-data/
+allfiles.txt
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 其他
+*.bak
+*.cache
+.vercel

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudPaste - 文件分享</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script src="app.js" defer></script>
+</head>
+<body>
+        <button class="theme-toggle" id="themeToggle" title="切换主题">
+            <i class="fas fa-clock"></i>
+        </button>
+
+    <div class="header-controls">
+        <a href="https://github.com/shan-hee/CloudPaste-SH" target="_blank" class="header-btn github" title="查看源码">
+            <i class="fab fa-github"></i>
+        </a>
+        <button type="button" class="header-btn admin" title="管理面板">
+            <i class="fas fa-cog"></i>
+        </button>    
+    </div>
+
+    <h1 class="site-title">CloudPaste</h1>
+    
+    <div class="container">
+        <div class="tabs" data-active-tab="text">
+            <button class="tab active" data-tab="text">
+                <i class="fas fa-file-alt"></i>
+                文本上传
+            </button>
+            <button class="tab" data-tab="file">
+                <i class="fas fa-file-upload"></i>
+                文件上传
+            </button>
+            <button class="tab" data-tab="book">
+                <i class="fas fa-book"></i>
+                书签上传
+            </button>
+        </div>
+
+        <div class="tab-content active" id="textUpload">
+            <div class="editor-wrapper">
+                <div class="editor-header">
+                    <div class="editor-tabs">
+                        <button class="editor-tab active" data-editor-tab="content">内容</button>
+                        <button class="editor-tab" data-editor-tab="preview">预览</button>
+                        <button class="editor-tab" data-editor-tab="split">对照</button>
+                    </div>
+                    <div class="editor-controls">
+                        <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" class="markdown-link">支持markdown语法</a>
+                        <button type="button" class="toolbar-btn toggle-toolbar" title="折叠工具栏" id="toggleToolbar">
+                            <i class="fas fa-toolbox"></i>
+                        </button>
+                        <button class="fullscreen-btn" title="全屏编辑">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="editor-toolbar">
+                    <div class="toolbar-buttons">
+                    <button type="button" class="toolbar-btn" data-action="bold" title="加粗"><i class="fas fa-bold"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="italic" title="斜体"><i class="fas fa-italic"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="strikethrough" title="删除线"><i class="fas fa-strikethrough"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="heading" title="标题"><i class="fas fa-heading"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="list-ul" title="无序列表"><i class="fas fa-list-ul"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="list-ol" title="有序列表"><i class="fas fa-list-ol"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="quote" title="引用"><i class="fas fa-quote-right"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="link" title="插入链接"><i class="fas fa-link"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="image" title="插入图片"><i class="fas fa-image"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="code" title="插入代码"><i class="fas fa-code"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="table" title="插入表格"><i class="fas fa-table"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="math" title="插入数学公式块"><i class="fas fa-square-root-alt"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="inline-math" title="插入行内数学公式"><i class="fas fa-superscript"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="undo" title="撤销"><i class="fas fa-undo"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="redo" title="重做"><i class="fas fa-redo"></i></button>
+                    <button type="button" class="toolbar-btn" data-action="clear" title="清空"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+
+                <div class="editor-content">
+                    <div class="content-view active">
+                        <textarea id="textContent" placeholder="在此输入要分享的文本..."></textarea>
+                    </div>
+                    <div class="preview-view">
+                        <div class="preview-content"></div>
+                    </div>
+                    <div class="split-view">
+                        <div class="split-editor">
+                            <textarea placeholder="在此输入要分享的文本..."></textarea>
+                        </div>
+                        <div class="split-preview">
+                            <div class="preview-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="charCount" class="char-count">0 字符</div>
+
+            <div class="form-row compact">
+                <div class="form-group">
+                    <label>密码保护</label>
+                    <div class="password-input-container">
+                        <input type="password" id="textPassword" placeholder="可选">
+                        <button type="button" class="password-toggle-btn" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>过期时间</label>
+                    <select id="textDuration">
+                        <option value="1h">1小时</option>
+                        <option value="1d" selected>1天</option>
+                        <option value="7d">7天</option>
+                        <option value="30d">30天</option>
+                        <option value="never">永久</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>自定义名称(可选)</label>
+                    <input type="text" id="textCustomUrl" placeholder="留空自动生成">
+                </div>
+
+                <div class="form-group">
+                    <label>可访问次数</label>
+                    <input type="number" id="textMaxViews" value="0" min="0" placeholder="0表示无限制">
+                </div>
+            </div>
+
+            <button class="submit-btn" id="submitText">
+                <i class="fas fa-share"></i> 创建文本分享
+            </button>
+
+            <div id="shareResult" class="share-result" style="display: none;">
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i>
+                    文本上传成功！
+                </div>
+                <div class="content-info">
+                    <div class="info-item">
+                        <i class="fas fa-file-alt"></i>
+                        <span>文本内容</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-text-width"></i>
+                        <span class="char-count">0 字符</span>
+                    </div>
+                    <div class="info-item time">
+                        <i class="fas fa-clock"></i>
+                        <span class="expires-at"></span>
+                    </div>
+                </div>
+                <div class="share-link-container">
+                    <input type="text" id="shareLink" readonly>
+                    <button class="copy-btn" id="copyShareLink" title="复制链接">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button class="qr-btn" id="showQRCode" title="显示二维码">
+                        <i class="fas fa-qrcode"></i>
+                    </button>
+                </div>
+                <div id="qrCodeContainer" class="qr-code-container" style="display: none;">
+                    <div class="qr-code-modal">
+                        <h3>扫描二维码访问</h3>
+                        <div class="qr-code" id="qrCode"></div>
+                        <div class="qr-code-actions">
+                            <button class="qr-download-btn" id="downloadQRCode">
+                                <i class="fas fa-download"></i> 下载二维码
+                            </button>
+                            <button class="qr-close-btn" id="closeQRCode">
+                                关闭
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="fileUpload" style="display: none;">
+            <input type="file" id="fileInput" multiple style="display: none;">
+            <div id="uploadArea">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>点击或拖拽文件到此处上传</p>
+                <small>支持所有类型的文件</small>
+            </div>
+            <div id="fileList" class="file-list"></div>
+            
+            <div class="form-row compact">
+                <div class="form-group">
+                    <label>密码保护</label>
+                    <div class="password-input-container">
+                        <input type="password" id="filePassword" placeholder="可选">
+                        <button type="button" class="password-toggle-btn" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>过期时间</label>
+                    <select id="fileDuration">
+                        <option value="1h">1小时</option>
+                        <option value="1d" selected>1天</option>
+                        <option value="7d">7天</option>
+                        <option value="30d">30天</option>
+                        <option value="never">永久</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>自定义名称(可选)</label>
+                    <input type="text" id="fileCustomUrl" placeholder="留空自动生成">
+                </div>
+
+                <div class="form-group">
+                    <label>可访问次数</label>
+                    <input type="number" id="fileMaxViews" value="0" min="0" placeholder="0表示无限制">
+                </div>
+            </div>
+
+            <button class="submit-btn" id="submitFile">
+                <i class="fas fa-upload"></i> 创建文件分享
+            </button>
+
+            <div class="upload-progress-container" id="uploadProgressContainer">
+                <div class="upload-progress-info">
+                    <div class="upload-progress-text">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span id="uploadProgressText">正在处理文件...</span>
+                    </div>
+                    <div class="upload-progress-right">
+                        <span id="uploadProgressPercent">0%</span>
+                    </div>
+                </div>
+                <div class="upload-progress-bar-wrapper">
+                    <div class="upload-progress-bar">
+                        <div class="progress" id="uploadProgressBar" style="width: 0%"></div>
+                    </div>
+                    <button id="cancelUpload" class="cancel-upload-btn" title="取消上传">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="bookmarkUpload" style="display: none;">
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label>网址</label>
+                    <input type="url" id="bookmarkUrl" placeholder="请输入要分享的网址">
+                </div>
+
+                <div class="form-group" style="flex: 1;">
+                    <label>标题 (可选)</label>
+                    <input type="text" id="bookmarkTitle" placeholder="为书签添加标题">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>描述 (可选)</label>
+                <textarea id="bookmarkDescription" placeholder="添加书签描述"></textarea>
+            </div>
+
+            <div class="form-row compact">
+                <div class="form-group">
+                    <label>密码保护</label>
+                    <div class="password-input-container">
+                        <input type="password" id="bookmarkPassword" placeholder="可选">
+                        <button type="button" class="password-toggle-btn" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>过期时间</label>
+                    <select id="bookmarkDuration">
+                        <option value="1h">1小时</option>
+                        <option value="1d" selected>1天</option>
+                        <option value="7d">7天</option>
+                        <option value="30d">30天</option>
+                        <option value="never">永久</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>自定义名称(可选)</label>
+                    <input type="text" id="bookmarkCustomUrl" placeholder="留空自动生成">
+                </div>
+
+                <div class="form-group">
+                    <label>可访问次数</label>
+                    <input type="number" id="bookmarkMaxViews" value="0" min="0" placeholder="0表示无限制">
+                </div>
+            </div>
+
+            <button class="submit-btn" id="submitBookmark">
+                <i class="fas fa-share"></i> 创建书签分享
+            </button>
+        </div>
+
+        <div class="progress-bar" id="uploadProgress">
+            <div class="progress"></div>
+        </div>
+
+        <div id="result"></div>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 class="sidebar-title">分享管理</h2>
+            <button class="close-sidebar" id="closeSidebar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <!-- 上传开关组 -->
+        <div class="upload-switches">
+            <div class="switch-card" title="允许/禁止文本上传">
+                <i class="fas fa-file-alt"></i>
+                <span>文本上传</span>
+                <label class="switch">
+                    <input type="checkbox" id="textUploadBtn">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="switch-card" title="允许/禁止文件上传">
+                <i class="fas fa-file-upload"></i>
+                <span>文件上传</span>
+                <label class="switch">
+                    <input type="checkbox" id="fileUploadBtn">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+        <div class="sidebar-content">
+            <div class="storage-info">
+                <h3>统计信息</h3>
+                <div class="storage-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">总分享数</span>
+                        <span class="stat-value" id="totalShares">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">有效分享</span>
+                        <span class="stat-value" id="activeShares">0</span>
+                    </div>
+                </div>
+                <div class="storage-usage">
+                    <div class="usage-label">
+                        <span>存储空间使用情况</span>
+                        <span id="usagePercent">0.0%</span>
+                    </div>
+                    <div class="usage-bar">
+                        <div class="usage-progress" style="width: 0%"></div>
+                    </div>
+                    <div class="usage-details">
+                        <span>已用: <span id="usedStorage">0 B</span></span>
+                        <span>总容量: <span id="totalStorage">0 GB</span></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="share-list">
+                <div class="list-header">
+                    <h3>分享列表</h3>
+                    <button class="refresh-btn" id="refreshList" title="刷新">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="list-filters">
+                    <div class="filter-group">
+                        <button class="filter-btn active" data-type="all">
+                            <i class="fas fa-layer-group"></i>
+                            全部
+                        </button>
+                        <button class="filter-btn" data-type="text">
+                            <i class="fas fa-file-alt"></i>
+                            文本
+                        </button>
+                        <button class="filter-btn" data-type="file">
+                            <i class="fas fa-file"></i>
+                            文件
+                        </button>
+                    </div>
+                </div>
+                <div id="shareItems" class="share-items"></div>
+            </div>
+        </div>
+        <div class="sidebar-footer">
+            <button id="logoutBtn" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> 退出登录
+            </button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="app.js"></script>
+    
+    <!-- Toast提示元素 -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span>内容已复制到剪贴板</span>
+    </div>
+</body>
+</html> 

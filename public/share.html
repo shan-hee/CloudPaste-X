@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudPaste - 分享内容</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="share.css">
+    <!-- 添加KaTeX CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <!-- 添加marked库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- 添加代码高亮 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js"></script>
+    <!-- 添加KaTeX JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <!-- 使用CDN加载QRCode库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- 添加html2canvas库 -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- 添加jsPDF库及中文字体支持 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-font@1.0.7/fonts/chinese.min.js"></script>
+    <!-- 内联定义二维码相关函数 -->
+    <script>
+        function toggleQRCode(url) {
+            console.log('生成二维码，URL:', url);
+            
+            let container = document.getElementById('qrcode-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'qrcode-container';
+                container.className = 'qr-code-container';
+                
+                const modal = document.createElement('div');
+                modal.className = 'qr-code-modal';
+                
+                const title = document.createElement('h3');
+                title.textContent = '扫描二维码访问';
+                
+                const qrcodeDiv = document.createElement('div');
+                qrcodeDiv.id = 'qrcode';
+                qrcodeDiv.className = 'qr-code';
+                
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'qr-code-actions';
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.textContent = '下载二维码';
+                downloadBtn.className = 'download-btn';
+                downloadBtn.onclick = () => {
+                    const canvas = qrcodeDiv.querySelector('canvas');
+                    if (canvas) {
+                        const link = document.createElement('a');
+                        link.download = 'qrcode.png';
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    }
+                };
+                
+                const closeBtn = document.createElement('button');
+                closeBtn.textContent = '关闭';
+                closeBtn.className = 'close-btn';
+                closeBtn.onclick = () => container.style.display = 'none';
+                
+                buttonContainer.appendChild(downloadBtn);
+                buttonContainer.appendChild(closeBtn);
+                
+                modal.appendChild(title);
+                modal.appendChild(qrcodeDiv);
+                modal.appendChild(buttonContainer);
+                container.appendChild(modal);
+                document.body.appendChild(container);
+                
+                // 阻止对话框上的点击事件冒泡到遮罩层
+                modal.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+            
+            try {
+                const qrcodeDiv = document.getElementById('qrcode');
+                qrcodeDiv.innerHTML = '';
+                
+                // 创建QRCode实例
+                const qrcode = new QRCode(qrcodeDiv, {
+                    text: url,
+                    width: 200,
+                    height: 200
+                });
+                
+                // 显示容器
+                container.style.display = 'flex';
+                
+                console.log('二维码生成成功');
+            } catch (error) {
+                console.error('生成二维码失败:', error);
+                alert('生成二维码失败，请稍后再试');
+            }
+        }
+        
+        // 兼容旧的函数名
+        window.toggleQDCode = window.toggleQRCode = toggleQRCode;
+        
+    </script>
+    <!-- 最后加载其他脚本 -->
+    <script src="app.js" defer></script>
+    <script src="share.js" defer></script>
+</head>
+<body>
+    <header class="header">
+        <div class="theme-toggle" id="themeToggle">
+            <i class="fas fa-sun"></i>
+        </div>
+    </header>
+    
+    <div class="content-container">
+        <div class="content-card">
+            <div class="card-header">
+                <div class="left-actions">
+                    <button class="action-btn" id="previewModeBtn">
+                        <i class="fas fa-eye"></i>
+                        预览模式
+                    </button>
+                    <button class="action-btn" id="editBtn">
+                        <i class="fas fa-edit"></i>
+                        编辑内容
+                    </button>
+                </div>
+                <div class="right-actions">
+                    <button class="action-btn secondary-btn" id="copyBtn">
+                        <i class="fas fa-copy"></i>
+                        复制内容
+                    </button>
+                    <button class="action-btn secondary-btn qr-btn" data-url="" title="显示二维码">
+                        <i class="fas fa-qrcode"></i>
+                        显示二维码
+                    </button>
+                    <select class="format-select" id="formatSelect">
+                        <option value="pdf" selected>PDF格式</option>
+                        <option value="png">PNG格式</option>
+                    </select>
+                    <button class="action-btn" id="downloadBtn">
+                        <i class="fas fa-download"></i>
+                        导出
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card-content">
+                <!-- 文件显示界面 -->
+                <div class="file-display" id="fileDisplay" style="display: none;">
+                    <div class="file-icon-container">
+                        <i class="fas fa-file fa-4x"></i>
+                        <span class="file-name" id="fileName">文件名称</span>
+                        <span class="file-size" id="fileSize">文件大小</span>
+                    </div>
+                    <div class="file-actions">
+                        <button class="action-btn" id="downloadFileBtn">
+                            <i class="fas fa-download"></i>
+                            下载文件
+                        </button>
+                    </div>
+                </div>
+
+                <div class="content-wrapper" id="shareContentdiv">
+                    <textarea class="share-content" id="shareContent" readonly></textarea>
+                </div>
+                
+                <!-- 编辑模式界面 -->
+                <div class="edit-mode" style="display: none;">
+                    <div class="editor-toolbar">
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" title="加粗">
+                                <i class="fas fa-bold"></i>
+                            </button>
+                            <button class="toolbar-btn" title="斜体">
+                                <i class="fas fa-italic"></i>
+                            </button>
+                            <button class="toolbar-btn" title="删除线">
+                                <i class="fas fa-strikethrough"></i>
+                            </button>
+                            <button class="toolbar-btn" title="标题">
+                                <i class="fas fa-heading"></i>
+                            </button>
+                            <span class="toolbar-separator"></span>
+                            <button class="toolbar-btn" title="无序列表">
+                                <i class="fas fa-list-ul"></i>
+                            </button>
+                            <button class="toolbar-btn" title="有序列表">
+                                <i class="fas fa-list-ol"></i>
+                            </button>
+                            <button class="toolbar-btn" title="引用">
+                                <i class="fas fa-quote-right"></i>
+                            </button>
+                            <span class="toolbar-separator"></span>
+                            <button class="toolbar-btn" title="插入链接">
+                                <i class="fas fa-link"></i>
+                            </button>
+                            <button class="toolbar-btn" title="插入图片">
+                                <i class="fas fa-image"></i>
+                            </button>
+                            <button class="toolbar-btn" title="插入代码">
+                                <i class="fas fa-code"></i>
+                            </button>
+                            <button class="toolbar-btn" title="插入表格">
+                                <i class="fas fa-table"></i>
+                            </button>
+                            <span class="toolbar-separator"></span>
+                            <button class="toolbar-btn" title="撤销" id="undoBtn">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button class="toolbar-btn" title="重做" id="redoBtn">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            <button class="toolbar-btn" title="清空">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" title="全屏编辑" id="fullscreenBtn">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="editor-container">
+                        <div class="editor-pane">
+                            <textarea class="edit-content" id="editContent" placeholder="在此输入内容..."></textarea>
+                        </div>
+                        <div class="preview-pane">
+                            <div class="preview-content markdown-body"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="edit-actions">
+                        <button class="action-btn save-btn" id="saveBtn">
+                            <i class="fas fa-save"></i>
+                            保存
+                        </button>
+                        <button class="action-btn cancel-btn" id="cancelBtn">
+                            <i class="fas fa-times"></i>
+                            取消
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-group">
+                <div class="left-info">
+                    <span class="info-item">
+                        <i class="far fa-clock"></i>
+                        创建时间: <span id="createTime"></span>
+                    </span>
+                    <span class="info-item">
+                        <i class="far fa-eye" style="color: #4e95ff;"></i>
+                        可访问次数: <input type="number" id="viewCount" value="0" min="0" readonly>
+                    </span>
+                </div>
+                <div class="right-info">
+                    <span class="info-item" >
+                        <i class="fas fa-hourglass-half" style="color: #4e95ff;"></i>
+                        过期时间: 
+                        <input type="datetime-local" id="expireTime" readonly>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast提示元素 -->
+        <div class="toast" id="toast">
+            <i class="fas fa-check-circle"></i>
+            <span>内容已复制到剪贴板</span>
+        </div>
+    </div>
+</body>
+</html> 

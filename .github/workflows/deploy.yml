@@ -85,7 +85,7 @@ jobs:
           if [ $? -ne 0 ]; then
             echo "Failed to list R2 buckets"
             exit 1
-          }
+          fi
           
           if ! echo "$BUCKET_LIST" | grep -q "$R2_BUCKET"; then
             echo "Creating R2 bucket: $R2_BUCKET"

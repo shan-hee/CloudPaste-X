@@ -10,6 +10,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
       
@@ -35,9 +38,6 @@ jobs:
             ${{ runner.os }}-wrangler-
       
       - name: Check and Create KV Namespace
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           wrangler telemetry disable
           
@@ -55,7 +55,7 @@ jobs:
             
             if [ -z "$KV_ID" ]; then
               echo "Creating KV namespace: $namespace"
-              CREATE_OUTPUT=$(wrangler kv namespace create "$namespace")
+              CREATE_OUTPUT=$(wrangler kv namespace create "cloudpaste-$namespace")
               if [ $? -ne 0 ]; then
                 echo "Failed to create KV namespace: $namespace"
                 exit 1
@@ -74,9 +74,6 @@ jobs:
           create_kv_namespace "UPLOAD_STATUS"
       
       - name: Check and Create R2 Bucket
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           R2_BUCKET="cloudpaste-files"
           echo "Checking R2 bucket: $R2_BUCKET"
@@ -123,7 +120,5 @@ jobs:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           command: deploy --var ADMIN_USERNAME:${{ secrets.ADMIN_USERNAME }} --var ADMIN_PASSWORD:${{ secrets.ADMIN_PASSWORD }}
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}

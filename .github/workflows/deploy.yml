@@ -54,7 +54,7 @@ jobs:
           
           function create_kv_namespace() {
             local namespace=$1
-            local namespace_title="cloudpaste-$namespace"
+            local namespace_title="$namespace"
             echo "Processing KV namespace: $namespace_title"
             
             echo "Listing KV namespaces..."
@@ -73,6 +73,10 @@ jobs:
               
               # 从创建输出中提取 ID
               KV_ID=$(echo "$CREATE_OUTPUT" | grep -o 'id = "[^"]*"' | cut -d'"' -f2)
+              if [ -z "$KV_ID" ]; then
+                # 尝试从 JSON 输出中提取
+                KV_ID=$(echo "$CREATE_OUTPUT" | jq -r '.id // empty')
+              fi
               echo "Created KV namespace with ID: $KV_ID"
             fi
             

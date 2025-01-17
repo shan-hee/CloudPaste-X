@@ -21,20 +21,19 @@ vars = { ENVIRONMENT = "development" }
 
 [[kv_namespaces]]
 binding = "CLOUDPASTE_KV"
-id = "your-kv-id"
-preview_id = "your-preview-kv-id"
+id = "temporary-id-12345"
+preview_id = "temporary-id-12345"
 
 [[r2_buckets]]
 binding = "CLOUDPASTE_BUCKET"
-bucket_name = "cloudpaste"
-preview_bucket_name = "cloudpaste-dev"
+bucket_name = "cloudpaste-files"
+preview_bucket_name = "cloudpaste-files-dev"
 
 [site]
 bucket = "./public"
 
 [build]
 command = "npm run build"    # Pages 构建命令
-upload.format = "service-worker"
 
 [triggers]
 crons = ["0 0 * * *"]       # 定时清理任务

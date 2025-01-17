@@ -111,7 +111,7 @@ jobs:
           # Update configuration
           sed -i \
             -e "s/id = \"temporary-id-12345\"/id = \"$PASTE_STORE_ID\"/" \
-            -e "s/id = \"temporary-id-67890\"/id = \"$UPLOAD_STATUS_ID\"/" \
+            -e "s/preview_id = \"temporary-id-12345\"/preview_id = \"$PASTE_STORE_ID\"/" \
             wrangler.toml
           
           echo "Updated wrangler.toml configuration:"

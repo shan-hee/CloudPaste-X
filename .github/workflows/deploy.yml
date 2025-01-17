@@ -117,14 +117,54 @@ jobs:
             exit 1
           fi
           
-          # Create backup
-          cp wrangler.toml wrangler.toml.bak
+          echo "PASTE_STORE_ID: $PASTE_STORE_ID"
+          echo "UPLOAD_STATUS_ID: $UPLOAD_STATUS_ID"
           
-          # Update configuration
-          sed -i \
-            -e "s/id = \"placeholder-id\"/id = \"$PASTE_STORE_ID\"/" \
-            -e "s/preview_id = \"placeholder-id\"/preview_id = \"$PASTE_STORE_ID\"/" \
-            wrangler.toml
+          # Create temporary file
+          cat > wrangler.toml.tmp << EOF
+          name = "cloudpaste"
+          main = "src/index.js"
+          compatibility_date = "2024-01-09"
+          
+          [vars]
+          # 通过环境变量覆盖这些默认值
+          ENVIRONMENT = "development"  # development/production
+          TOTAL_STORAGE_GB = "6"      # 总存储容量，单位GB
+          ADMIN_USERNAME = "admin"     # 管理员用户名
+          ADMIN_PASSWORD = "admin"     # 管理员密码，生产环境建议通过环境变量设置
+          MAX_FILE_SIZE = "500"       # 单个文件大小限制，单位MB
+          SESSION_DURATION = "7d"      # 会话持续时间
+          TEXT_UPLOAD_ENABLED = "true" # 文本上传开关
+          FILE_UPLOAD_ENABLED = "true" # 文件上传开关
+          
+          [env.production]
+          vars = { ENVIRONMENT = "production" }
+          
+          [env.development]
+          vars = { ENVIRONMENT = "development" }
+          
+          [[kv_namespaces]]
+          binding = "CLOUDPASTE_KV"
+          id = "$PASTE_STORE_ID"
+          preview_id = "$PASTE_STORE_ID"
+          
+          [[r2_buckets]]
+          binding = "CLOUDPASTE_BUCKET"
+          bucket_name = "cloudpaste-files"
+          preview_bucket_name = "cloudpaste-files-dev"
+          
+          [site]
+          bucket = "./public"
+          
+          [build]
+          command = "npm run build"    # Pages 构建命令
+          
+          [triggers]
+          crons = ["0 0 * * *"]       # 定时清理任务
+          EOF
+          
+          # Replace the original file
+          mv wrangler.toml.tmp wrangler.toml
           
           echo "Updated wrangler.toml configuration:"
           cat wrangler.toml

@@ -120,8 +120,11 @@ jobs:
           echo "PASTE_STORE_ID: $PASTE_STORE_ID"
           echo "UPLOAD_STATUS_ID: $UPLOAD_STATUS_ID"
           
-          # Create temporary file
-          cat > wrangler.toml.tmp << EOF
+          # Escape the variables
+          PASTE_STORE_ID_ESC=$(echo "$PASTE_STORE_ID" | sed 's/[\/&]/\\&/g')
+          
+          # Create temporary file with placeholder
+          cat > wrangler.toml.tmp << 'EOF'
           name = "cloudpaste"
           main = "src/index.js"
           compatibility_date = "2024-01-09"
@@ -145,8 +148,8 @@ jobs:
           
           [[kv_namespaces]]
           binding = "CLOUDPASTE_KV"
-          id = "$PASTE_STORE_ID"
-          preview_id = "$PASTE_STORE_ID"
+          id = "PASTE_STORE_ID_PLACEHOLDER"
+          preview_id = "PASTE_STORE_ID_PLACEHOLDER"
           
           [[r2_buckets]]
           binding = "CLOUDPASTE_BUCKET"
@@ -162,6 +165,9 @@ jobs:
           [triggers]
           crons = ["0 0 * * *"]       # 定时清理任务
           EOF
+          
+          # Replace placeholder with actual value
+          sed -i "s/PASTE_STORE_ID_PLACEHOLDER/$PASTE_STORE_ID_ESC/g" wrangler.toml.tmp
           
           # Replace the original file
           mv wrangler.toml.tmp wrangler.toml

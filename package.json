@@ -1,21 +1,15 @@
 {
   "name": "cloudpaste",
   "version": "1.0.0",
-  "description": "A simple file sharing service",
-  "type": "module",
+  "description": "CloudPaste - A secure file sharing service",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "wrangler dev",
     "build": "echo 'No build step required'",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
   },
-  "dependencies": {
-    "hono": "^3.12.12",
-    "uuid": "^11.0.5"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20231218.0",
-    "wrangler": "^3.22.1"
+    "wrangler": "^3.0.0"
   }
 }

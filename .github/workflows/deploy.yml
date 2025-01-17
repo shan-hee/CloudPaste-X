@@ -30,16 +30,21 @@ jobs:
       - name: Configure Wrangler
         run: |
           mkdir -p ~/.wrangler
-          echo "CLOUDFLARE_API_TOKEN=${{ secrets.CF_API_TOKEN }}" > ~/.wrangler/config.toml
-          echo "CLOUDFLARE_ACCOUNT_ID=${{ secrets.CF_ACCOUNT_ID }}" >> ~/.wrangler/config.toml
           
+          cat > ~/.wrangler/config.toml << EOF
+          api_token = "${{ secrets.CF_API_TOKEN }}"
+          account_id = "${{ secrets.CF_ACCOUNT_ID }}"
+          EOF
+          
+          wrangler whoami
+      
       - name: Cache Wrangler
         uses: actions/cache@v4
         with:
           path: |
             ~/.wrangler
             ~/.npm
-          key: ${{ runner.os }}-wrangler-${{ hashFiles('**/package.json') }}
+          key: ${{ runner.os }}-wrangler-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-wrangler-
       

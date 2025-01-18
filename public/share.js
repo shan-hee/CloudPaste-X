@@ -1,8 +1,25 @@
 // 显示Toast提示
-function showToast(message = '内容已复制到剪贴板', duration = 2000) {
+function showToast(message = '内容已复制到剪贴板', duration = 2000, type = 'info') {
     const toast = document.getElementById('toast');
     const messageSpan = toast.querySelector('span');
-    messageSpan.textContent = message;
+    
+    // 设置最高层级
+    toast.style.zIndex = '999999';
+    
+    // 清空现有内容
+    messageSpan.textContent = '';
+    
+    // 根据类型设置不同的样式和图标
+    toast.className = 'toast';
+    if (type === 'error') {
+        toast.classList.add('error');
+        messageSpan.innerHTML = `<i class="fas fa-times" style="margin-right: 8px; color: #ff4d4f;"></i>${message}`;
+    } else if (type === 'warning') {
+        toast.classList.add('warning');
+        messageSpan.innerHTML = `<i class="fas fa-exclamation-circle" style="margin-right: 8px; color: #faad14;"></i>${message}`;
+    } else {
+        messageSpan.innerHTML = `<i class="fas fa-check-circle" style="margin-right: 8px; color: #4CAF50;"></i>${message}`;
+    }
     
     // 清除之前的定时器
     if (toast.hideTimeout) {
@@ -15,6 +32,11 @@ function showToast(message = '内容已复制到剪贴板', duration = 2000) {
     // 设置定时器隐藏 toast
     toast.hideTimeout = setTimeout(() => {
         toast.classList.remove('show');
+        // 重置样式
+        setTimeout(() => {
+            toast.classList.remove('error', 'warning');
+            messageSpan.textContent = '';
+        }, 300);
     }, duration);
 }
 
@@ -79,9 +101,288 @@ const fullscreenBtn = document.getElementById('fullscreenBtn');
 const undoBtn = document.getElementById('undoBtn');
 const redoBtn = document.getElementById('redoBtn');
 const previewModeBtn = document.getElementById('previewModeBtn');
+const filename = document.getElementById('filename');
 
 // 预览模式状态
 let isPreviewMode = true;
+let originalFilename = '';
+
+// 确保预览区域存在并返回预览内容元素
+function ensurePreviewContent() {
+    const previewPane = document.querySelector('.preview-pane');
+    if (!previewPane) {
+        console.error('找不到预览区域容器');
+        return null;
+    }
+
+    let previewContent = previewPane.querySelector('.preview-content');
+    if (!previewContent) {
+        previewContent = document.createElement('div');
+        previewContent.className = 'preview-content markdown-body';
+        previewPane.appendChild(previewContent);
+    }
+    return previewContent;
+}
+
+// 更新Markdown预览内容
+function updateMarkdownPreview(markdown) {
+    try {
+        const previewContent = ensurePreviewContent();
+        if (!previewContent) return;
+
+        // 如果没有内容，清空预览区域并返回
+        if (!markdown) {
+            previewContent.innerHTML = '';
+            return;
+        }
+
+        const html = marked.parse(markdown);
+        previewContent.innerHTML = html;
+
+        // 对新内容应用代码高亮
+        previewContent.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightBlock(block);
+        });
+    } catch (error) {
+        console.error('Markdown渲染错误:', error);
+        const previewContent = ensurePreviewContent();
+        if (previewContent) {
+            previewContent.innerHTML = `<div class="error">Markdown渲染错误: ${error.message}</div>`;
+        }
+    }
+}
+
+// 编辑器历史记录管理
+const editorHistory = {
+    undoStack: [],
+    redoStack: [],
+    lastSavedContent: '',
+
+    // 保存编辑历史
+    save(content) {
+        // 如果内容没有变化，不保存历史
+        if (content === this.lastSavedContent) {
+            return;
+        }
+        
+        this.undoStack.push(this.lastSavedContent);
+        this.lastSavedContent = content;
+        // 清空重做栈
+        this.redoStack = [];
+        this.updateButtons();
+    },
+
+    // 重置历史记录
+    reset(initialContent = '') {
+        this.undoStack = [];
+        this.redoStack = [];
+        this.lastSavedContent = initialContent;
+        this.updateButtons();
+    },
+
+    // 撤销
+    undo() {
+        if (this.undoStack.length > 0) {
+            const currentContent = editContent.value;
+            const previousContent = this.undoStack.pop();
+            
+            // 保存当前内容到重做栈
+            this.redoStack.push(currentContent);
+            
+            // 更新编辑器内容
+            editContent.value = previousContent;
+            this.lastSavedContent = previousContent;
+            
+            // 更新预览
+            updateMarkdownPreview(previousContent);
+            
+            // 更新按钮状态
+            this.updateButtons();
+        }
+    },
+
+    // 重做
+    redo() {
+        if (this.redoStack.length > 0) {
+            const currentContent = editContent.value;
+            const nextContent = this.redoStack.pop();
+            
+            // 保存当前内容到撤销栈
+            this.undoStack.push(currentContent);
+            
+            // 更新编辑器内容
+            editContent.value = nextContent;
+            this.lastSavedContent = nextContent;
+            
+            // 更新预览
+            updateMarkdownPreview(nextContent);
+            
+            // 更新按钮状态
+            this.updateButtons();
+        }
+    },
+
+    // 更新按钮状态
+    updateButtons() {
+        if (undoBtn) undoBtn.disabled = this.undoStack.length === 0;
+        if (redoBtn) redoBtn.disabled = this.redoStack.length === 0;
+    }
+};
+
+// 切换到编辑模式
+editBtn.addEventListener('click', () => {
+    if (isPreviewMode) {
+        exitPreviewMode();
+    }
+    
+    // 保存原始文件名和内容
+    originalFilename = filename.value;
+    
+    // 启用文件名编辑
+    filename.readOnly = false;
+    
+    // 显示编辑界面
+    shareContentdiv.style.display = 'none';
+    editMode.style.display = 'block';
+    editContent.value = shareContent.value;
+    
+    // 添加编辑状态样式
+    editBtn.classList.add('editing');
+    
+    // 初始化同步滚动
+    initSyncScroll();
+    
+    // 启用可访问次数和过期时间输入框
+    const viewCountInput = document.getElementById('viewCount');
+    const expireTimeInput = document.getElementById('expireTime');
+    viewCountInput.removeAttribute('readonly');
+    expireTimeInput.removeAttribute('readonly');
+    
+    // 确保预览区域已初始化
+    ensurePreviewContent();
+    
+    // 初始化编辑历史
+    editorHistory.reset(shareContent.value);
+    
+    // 绑定预览更新事件
+    editContent.addEventListener('input', () => {
+        const currentContent = editContent.value;
+        updateMarkdownPreview(currentContent);
+        editorHistory.save(currentContent);
+    });
+    
+    // 立即更新一次预览
+    updateMarkdownPreview(editContent.value);
+});
+
+// 撤销功能
+undoBtn.addEventListener('click', () => editorHistory.undo());
+
+// 重做功能
+redoBtn.addEventListener('click', () => editorHistory.redo());
+
+// 工具栏功能
+document.querySelectorAll('.toolbar-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const command = btn.getAttribute('title');
+        const textarea = editContent;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        const previewContent = document.querySelector('.preview-pane .preview-content');
+
+        let newText = '';
+        switch (command) {
+            case '加粗':
+                newText = `**${selectedText}**`;
+                break;
+            case '斜体':
+                newText = `*${selectedText}*`;
+                break;
+            case '删除线':
+                newText = `~~${selectedText}~~`;
+                break;
+            case '标题':
+                newText = `# ${selectedText}`;
+                break;
+            case '无序列表':
+                newText = `- ${selectedText}`;
+                break;
+            case '有序列表':
+                newText = `1. ${selectedText}`;
+                break;
+            case '引用':
+                newText = `> ${selectedText}`;
+                break;
+            case '插入链接':
+                const url = prompt('请输入链接地址：');
+                if (url) {
+                    newText = `[${selectedText || '链接文字'}](${url})`;
+                }
+                break;
+            case '插入图片':
+                const imgUrl = prompt('请输入图片地址：');
+                if (imgUrl) {
+                    newText = `![${selectedText || '图片描述'}](${imgUrl})`;
+                }
+                break;
+            case '插入代码':
+                if (selectedText.includes('\n')) {
+                    newText = `\`\`\`\n${selectedText}\n\`\`\``;
+                } else {
+                    newText = `\`${selectedText}\``;
+                }
+                break;
+            case '插入表格':
+                newText = `| 表头1 | 表头2 |\n| --- | --- |\n| 内容1 | 内容2 |`;
+                break;
+            case '清空':
+                // 保存当前内容到撤销栈
+                editorHistory.save(textarea.value);
+                // 清空编辑器内容
+                textarea.value = '';
+                previewContent.innerHTML = '';
+                // 保存空内容到历史
+                editorHistory.save('');
+                return;
+            case '全屏编辑':
+                toggleFullscreen();
+                return;
+        }
+        
+        if (newText) {
+            const oldContent = textarea.value;
+            const newContent = oldContent.substring(0, start) + newText + oldContent.substring(end);
+            
+            // 保存当前内容到历史
+            editorHistory.save(oldContent);
+            
+            // 更新编辑器内容
+            textarea.value = newContent;
+            textarea.focus();
+            textarea.selectionStart = start;
+            textarea.selectionEnd = start + newText.length;
+            
+            // 更新预览
+            updateMarkdownPreview(newContent);
+            
+            // 保存新内容到历史
+            editorHistory.save(newContent);
+        }
+    });
+});
+
+// 取消编辑
+cancelBtn.addEventListener('click', () => {
+    // 恢复原始文件名
+    filename.value = originalFilename;
+    
+    // 禁用文件名编辑
+    filename.readOnly = true;
+    
+    // 切换回预览模式
+    togglePreviewMode();
+});
 
 // 编辑历史记录
 let undoStack = [];
@@ -89,8 +390,18 @@ let redoStack = [];
 
 // 初始化预览模式
 function initPreviewMode() {
+    const previewContent = document.querySelector('.preview-pane .preview-content');
+    if (!previewContent) {
+        console.error('找不到预览区域元素');
+        return;
+    }
+
     if (isPreviewMode) {
         previewModeBtn.classList.add('active');
+        // 确保预览内容是最新的
+        if (editContent && editContent.value) {
+            updateMarkdownPreview(editContent.value);
+        }
     }
 }
 
@@ -106,6 +417,8 @@ function togglePreviewMode() {
         // 关闭编辑模式
         shareContent.style.display = 'block';
         editMode.style.display = 'none';
+        // 禁用标题编辑
+        filename.readOnly = true;
         // 移除编辑状态样式
         editBtn.classList.remove('editing');
         if (editMode.classList.contains('fullscreen')) {
@@ -124,21 +437,6 @@ function exitPreviewMode() {
     
     isPreviewMode = false;
     previewModeBtn.classList.remove('active');
-}
-
-// 更新Markdown预览内容
-function updateMarkdownPreview(markdown) {
-    try {
-        const html = marked.parse(markdown);
-        previewContent.innerHTML = html;
-        // 对新内容应用代码高亮
-        previewContent.querySelectorAll('pre code').forEach((block) => {
-            hljs.highlightBlock(block);
-        });
-    } catch (error) {
-        console.error('Markdown渲染错误:', error);
-        previewContent.innerHTML = '<div class="error">Markdown渲染错误</div>';
-    }
 }
 
 // 预览模式按钮点击事件
@@ -188,6 +486,9 @@ async function loadShareContent() {
             return;
         }
         
+        let password = null;
+        let needPassword = false;
+        
         // 先尝试获取内容
         const response = await fetch(`/s/${shareId}`, {
             headers: {
@@ -199,9 +500,10 @@ async function loadShareContent() {
         let data = await response.json();
         
         // 如果需要密码验证
-        if (response.status === 403 && data.requirePassword) {
+        while (response.status === 403 && data.requirePassword) {
+            needPassword = true;
             // 显示密码输入对话框
-            const password = await showPasswordDialog(shareId);
+            password = await showPasswordDialog(shareId);
             if (!password) {
                 return; // 用户取消输入密码
             }
@@ -217,8 +519,8 @@ async function loadShareContent() {
             
             const verifyResult = await verifyResponse.json();
             if (!verifyResult.success) {
-                showToast('密码错误', 'error');
-                return;
+                showToast('密码错误，请重试', 3000, 'error');
+                continue; // 继续显示密码输入框
             }
             
             // 密码验证通过，重新获取内容
@@ -230,12 +532,12 @@ async function loadShareContent() {
                 }
             });
             
-            const newData = await newResponse.json();
-            if (!newData.success) {
-                showToast(newData.message || '获取内容失败', 'error');
-                return;
+            data = await newResponse.json();
+            if (!data.success) {
+                showToast(data.message || '获取内容失败', 'error');
+                continue; // 如果获取失败，继续要求输入密码
             }
-            data = newData;
+            break; // 获取成功，跳出循环
         }
         
         if (data.success) {
@@ -276,6 +578,7 @@ async function loadShareContent() {
                 document.getElementById('formatSelect').style.display = 'inline-block';
                 document.getElementById('downloadBtn').style.display = 'inline-flex';
                 shareContent.value = data.data.content;
+                filename.value = data.data.filename;
                 
                 // 初始化预览模式
                 initPreviewMode();
@@ -541,63 +844,102 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewModeBtn = document.getElementById('previewModeBtn');
     
     // 初始化marked配置
-    const renderer = new marked.Renderer();
-    
-    // 处理代码块
-    renderer.code = (code, language) => {
-        if (language === 'math' || language === 'tex') {
-            try {
-                return `<div class="math-block">${katex.renderToString(code, {
-                    displayMode: true,
-                    throwOnError: false,
-                    strict: false
-                })}</div>`;
-            } catch (error) {
-                console.error('KaTeX渲染错误:', error);
-                return `<pre class="error">KaTeX渲染错误: ${error.message}</pre>`;
+    function initMarked() {
+        try {
+            if (typeof marked === 'undefined') {
+                console.error('marked 未加载');
+                return false;
             }
+
+            const renderer = new marked.Renderer();
+            
+            // 处理代码块
+            renderer.code = (code, language) => {
+                if (!code) return '';
+                code = String(code);
+                
+                if (language === 'math' || language === 'tex') {
+                    try {
+                        return `<div class="math-block">${katex.renderToString(code, {
+                            displayMode: true,
+                            throwOnError: false,
+                            strict: false
+                        })}</div>`;
+                    } catch (error) {
+                        console.error('KaTeX渲染错误:', error);
+                        return `<pre class="error">KaTeX渲染错误: ${error.message}</pre>`;
+                    }
+                }
+                
+                // 处理普通代码块
+                try {
+                    if (typeof hljs !== 'undefined') {
+                        const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
+                        const highlightedCode = hljs.highlight(code, { language: validLanguage }).value;
+                        return `<pre><code class="hljs ${validLanguage}">${highlightedCode}</code></pre>`;
+                    }
+                    // 如果 hljs 未定义，返回普通代码块
+                    return `<pre><code>${code}</code></pre>`;
+                } catch (error) {
+                    console.error('代码高亮错误:', error);
+                    return `<pre><code>${code}</code></pre>`;
+                }
+            };
+            
+            // 处理行内代码
+            renderer.codespan = (code) => {
+                if (!code) return '';
+                code = String(code);
+                
+                if (code.startsWith('$') && code.endsWith('$')) {
+                    try {
+                        const tex = code.slice(1, -1);
+                        return katex.renderToString(tex, {
+                            displayMode: false,
+                            throwOnError: false,
+                            strict: false
+                        });
+                    } catch (error) {
+                        console.error('KaTeX行内公式渲染错误:', error);
+                        return `<code class="error">KaTeX错误: ${error.message}</code>`;
+                    }
+                }
+                return `<code>${code}</code>`;
+            };
+            
+            // 配置marked选项
+            marked.setOptions({
+                renderer: renderer,
+                highlight: (code, lang) => {
+                    if (!code) return '';
+                    code = String(code);
+                    
+                    try {
+                        if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+                            return hljs.highlight(code, { language: lang }).value;
+                        }
+                        return code;
+                    } catch (error) {
+                        console.error('代码高亮错误:', error);
+                        return code;
+                    }
+                },
+                breaks: true,
+                gfm: true,
+                headerIds: true,
+                mangle: false,
+                pedantic: false,
+                sanitize: false
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('marked初始化错误:', error);
+            return false;
         }
-        
-        // 处理普通代码块
-        const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
-        const highlightedCode = hljs.highlight(code, { language: validLanguage }).value;
-        return `<pre><code class="hljs ${validLanguage}">${highlightedCode}</code></pre>`;
-    };
-    
-    // 处理行内代码
-    renderer.codespan = (code) => {
-        if (code.startsWith('$') && code.endsWith('$')) {
-            try {
-                const tex = code.slice(1, -1);
-                return katex.renderToString(tex, {
-                    displayMode: false,
-                    throwOnError: false,
-                    strict: false
-                });
-            } catch (error) {
-                console.error('KaTeX行内公式渲染错误:', error);
-                return `<code class="error">KaTeX错误: ${error.message}</code>`;
-            }
-        }
-        return `<code>${code}</code>`;
-    };
-    
-    // 配置marked选项
-    marked.setOptions({
-        renderer: renderer,
-        highlight: (code, lang) => {
-            if (lang && hljs.getLanguage(lang)) {
-                return hljs.highlight(code, { language: lang }).value;
-            }
-            return hljs.highlightAuto(code).value;
-        },
-        breaks: true,
-        gfm: true,
-        headerIds: true,
-        mangle: false
-    });
-    
-    // 实时预览更新函数
+    }
+
+    // 更新预览函数
     function updatePreview() {
         try {
             const editContent = document.getElementById('editContent');
@@ -608,24 +950,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // 渲染Markdown内容
-            const markdown = editContent.value || '';
-            const html = marked.parse(markdown);
-            previewContent.innerHTML = html;
+            // 确保marked已初始化
+            if (!initMarked()) {
+                previewContent.innerHTML = '<div class="error">Markdown渲染器初始化失败</div>';
+                return;
+            }
             
-            // 渲染数学公式
-            renderMathInElement(previewContent, {
-                delimiters: [
-                    {left: '$$', right: '$$', display: true},
-                    {left: '$', right: '$', display: false},
-                    {left: '\\(', right: '\\)', display: false},
-                    {left: '\\[', right: '\\]', display: true}
-                ],
-                throwOnError: false,
-                strict: false,
-                trust: true
-            });
+            // 确保输入内容是字符串
+            const markdown = String(editContent.value || '');
             
+            try {
+                const html = marked.parse(markdown);
+                previewContent.innerHTML = html;
+                
+                // 渲染数学公式
+                renderMathInElement(previewContent, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false,
+                    strict: false,
+                    trust: true
+                });
+            } catch (error) {
+                console.error('预览更新错误:', error);
+                previewContent.innerHTML = `<div class="error">预览更新失败: ${error.message}</div>`;
+            }
         } catch (error) {
             console.error('预览更新错误:', error);
             const previewContent = document.querySelector('.preview-pane .preview-content');
@@ -637,37 +990,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 切换到编辑模式
 editBtn.addEventListener('click', () => {
-    // 关闭预览模式
-    isPreviewMode = false;
-    previewModeBtn.classList.remove('active');
+    if (isPreviewMode) {
+        exitPreviewMode();
+    }
     
-        // 设置编辑内容
-    editContent.value = shareContent.value;
-    shareContentdiv.style.display = 'none';    
-    shareContent.style.display = 'none';
+    // 保存原始文件名和内容
+    originalFilename = filename.value;
+    
+    // 启用文件名编辑
+    filename.readOnly = false;
+    
+    // 显示编辑界面
+    shareContentdiv.style.display = 'none';
     editMode.style.display = 'block';
-        
+    editContent.value = shareContent.value;
+    
     // 添加编辑状态样式
     editBtn.classList.add('editing');
-        
-        // 初始化同步滚动
-        initSyncScroll();
-        
-        // 启用可访问次数和过期时间输入框
-        const viewCountInput = document.getElementById('viewCount');
-        const expireTimeInput = document.getElementById('expireTime');
-        viewCountInput.removeAttribute('readonly');
-        expireTimeInput.removeAttribute('readonly');
-        
-        // 绑定预览更新事件
-        editContent.addEventListener('input', () => {
-            updatePreview();
-            saveHistory();
-        });
-        
-        // 立即更新一次预览
-        updatePreview();
+    
+    // 初始化同步滚动
+    initSyncScroll();
+    
+    // 启用可访问次数和过期时间输入框
+    const viewCountInput = document.getElementById('viewCount');
+    const expireTimeInput = document.getElementById('expireTime');
+    viewCountInput.removeAttribute('readonly');
+    expireTimeInput.removeAttribute('readonly');
+    
+    // 确保预览区域已初始化
+    ensurePreviewContent();
+    
+    // 初始化编辑历史
+    editorHistory.reset(shareContent.value);
+    
+    // 绑定预览更新事件
+    editContent.addEventListener('input', () => {
+        const currentContent = editContent.value;
+        updateMarkdownPreview(currentContent);
+        editorHistory.save(currentContent);
     });
+    
+    // 立即更新一次预览
+    updateMarkdownPreview(editContent.value);
+});
     
     // 加载分享内容
     loadShareContent();
@@ -702,11 +1067,13 @@ saveBtn.addEventListener('click', async () => {
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const shareId = urlParams.get('id');
+        const filename = document.getElementById('filename').value;
         const viewCount = parseInt(document.getElementById('viewCount').value) || 0;
         const expireTime = document.getElementById('expireTime').value;
         const currentContent = editContent.value;
         
         const requestData = {
+            filename: filename,
             content: currentContent,
             maxViews: viewCount,
             expiresAt: expireTime || null
@@ -738,14 +1105,10 @@ saveBtn.addEventListener('click', async () => {
                 toggleFullscreen();
             }
             
-            // 禁用编辑
-            const viewCountInput = document.getElementById('viewCount');
-            const expireTimeInput = document.getElementById('expireTime');
-            viewCountInput.setAttribute('readonly', 'readonly');
-            expireTimeInput.setAttribute('readonly', 'readonly');
-            
-            isPreviewMode = true;
-            previewModeBtn.classList.add('active');
+            // 禁用标题编辑
+            filename.readOnly = true;
+            // 切换回预览模式
+            togglePreviewMode();
             
             showToast('保存成功');
         } else {
@@ -754,142 +1117,6 @@ saveBtn.addEventListener('click', async () => {
     } catch (error) {
         console.error('保存失败:', error);
         showToast('保存失败，请稍后重试', 3000);
-    }
-});
-
-// 保存编辑历史
-function saveHistory() {
-    undoStack.push(editContent.value);
-    redoStack = [];
-    updateUndoRedoButtons();
-}
-
-// 更新撤销重做按钮状态
-function updateUndoRedoButtons() {
-    undoBtn.disabled = undoStack.length === 0;
-    redoBtn.disabled = redoStack.length === 0;
-}
-
-// 监听编辑内容变化
-editContent.addEventListener('input', () => {
-    updatePreview();
-    saveHistory();
-});
-
-// 工具栏功能
-document.querySelectorAll('.toolbar-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const command = btn.getAttribute('title');
-        const textarea = editContent;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const selectedText = textarea.value.substring(start, end);
-        const previewContent = document.querySelector('.preview-pane .preview-content');
-
-        
-        let newText = '';
-        switch (command) {
-            case '加粗':
-                newText = `**${selectedText}**`;
-                break;
-            case '斜体':
-                newText = `*${selectedText}*`;
-                break;
-            case '删除线':
-                newText = `~~${selectedText}~~`;
-                break;
-            case '标题':
-                newText = `# ${selectedText}`;
-                break;
-            case '无序列表':
-                newText = `- ${selectedText}`;
-                break;
-            case '有序列表':
-                newText = `1. ${selectedText}`;
-                break;
-            case '引用':
-                newText = `> ${selectedText}`;
-                break;
-            case '插入链接':
-                const url = prompt('请输入链接地址：');
-                if (url) {
-                    newText = `[${selectedText || '链接文字'}](${url})`;
-                }
-                break;
-            case '插入图片':
-                const imgUrl = prompt('请输入图片地址：');
-                if (imgUrl) {
-                    newText = `![${selectedText || '图片描述'}](${imgUrl})`;
-                }
-                break;
-            case '插入代码':
-                if (selectedText.includes('\n')) {
-                    newText = `\`\`\`\n${selectedText}\n\`\`\``;
-                } else {
-                    newText = `\`${selectedText}\``;
-                }
-                break;
-            case '插入表格':
-                newText = `| 表头1 | 表头2 |\n| --- | --- |\n| 内容1 | 内容2 |`;
-                break;
-            case '清空':
-                if (confirm('确定要清空编辑器内容吗？此操作不可撤销。')) {
-                    // 保存当前内容到撤销栈
-                    saveHistory();
-                    // 清空编辑器内容
-                    textarea.value = '';
-                    previewContent.innerHTML ='';
-                    // 手动触发input事件以确保预览更新
-                    // textarea.dispatchEvent(new Event('input', {
-                    //     bubbles: true,
-                    //     cancelable: true
-                    // }));
-                }
-                return;
-            case '全屏编辑':
-                toggleFullscreen();
-                return;
-        }
-        
-        if (newText) {
-            textarea.value = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
-            // 手动触发input事件
-            textarea.dispatchEvent(new Event('input', {
-                bubbles: true,
-                cancelable: true
-            }));
-            textarea.focus();
-            textarea.selectionStart = start;
-            textarea.selectionEnd = start + newText.length;
-        }
-    });
-});
-
-// 撤销功能
-undoBtn.addEventListener('click', () => {
-    if (undoStack.length > 0) {
-        redoStack.push(editContent.value);
-        editContent.value = undoStack.pop();
-        // 手动触发input事件
-        editContent.dispatchEvent(new Event('input', {
-            bubbles: true,
-            cancelable: true
-        }));
-        updateUndoRedoButtons();
-    }
-});
-
-// 重做功能
-redoBtn.addEventListener('click', () => {
-    if (redoStack.length > 0) {
-        undoStack.push(editContent.value);
-        editContent.value = redoStack.pop();
-        // 手动触发input事件
-        editContent.dispatchEvent(new Event('input', {
-            bubbles: true,
-            cancelable: true
-        }));
-        updateUndoRedoButtons();
     }
 });
 

@@ -425,7 +425,7 @@ app.put('/api/text/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const data = await c.req.json()
-    const { content, password, duration, maxViews } = data
+    const { filename, content, password, duration, maxViews } = data
 
     // 从 KV 中获取原始分享数据
     const shareData = await c.env.CLOUDPASTE_KV.get(id, 'json')
@@ -466,6 +466,7 @@ app.put('/api/text/:id', async (c) => {
     // 更新分享数据
     const updatedShareData = {
       ...shareData,
+      filename: filename || shareData.filename,
       content: content || shareData.content,
       password: password || shareData.password,
       maxViews: maxViews || shareData.maxViews,
@@ -613,6 +614,7 @@ app.get('/s/:id', async (c) => {
                     success: true,
                     data: {
                         type: 'text',
+                        filename: shareData.filename,
                         content: shareData.content,
                         created: shareData.created,
                         views: shareData.views,

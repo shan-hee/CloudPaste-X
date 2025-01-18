@@ -184,8 +184,6 @@
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%) translateY(100px);
-    background-color: rgba(0, 0, 0, 0.8);
-    color: white;
     padding: 8px 16px;
     border-radius: 4px;
     font-size: 13px;
@@ -201,7 +199,6 @@
 
 .toast i {
     font-size: 14px;
-    color: #4CAF50;
 }
 
 .toast.show {
@@ -210,10 +207,33 @@
     visibility: visible;
 }
 
+/* 亮色主题下的 toast 样式 */
+[data-theme='light'] .toast {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+}
+
 /* 暗色主题下的 toast 样式 */
 [data-theme='dark'] .toast {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    backdrop-filter: blur(4px);
+}
+
+/* 自动主题下的 toast 样式 */
+@media (prefers-color-scheme: light) {
+    [data-theme='auto'] .toast {
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    [data-theme='auto'] .toast {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        backdrop-filter: blur(4px);
+    }
 }
 
 .header {
@@ -593,7 +613,7 @@
     margin-left: auto;   
     gap: 10px;
     padding: 10px;
-    border-top: 1px solid var(--border-color);
+    border-top: 0px solid var(--border-color);
     background: white;
     border-radius: 0 0 4px 4px;
 }
@@ -1564,4 +1584,30 @@
     [data-theme='auto'] .dialog-buttons .cancel-btn:hover {
         background-color: rgba(255, 255, 255, 0.15);
     }
+}
+
+.text-title-container {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.text-title {
+    width: 100%;
+    font-size: 1.2em;
+    font-weight: bold;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.text-title:not([readonly]) {
+    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+}
+
+.text-title:focus {
+    outline: none;
+    border-color: var(--primary-color);
 }

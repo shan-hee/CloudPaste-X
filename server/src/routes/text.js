@@ -8,7 +8,7 @@ const bcrypt = require('bcryptjs');
 router.post('/', async (req, res) => {
     try {
         console.log('Creating text share:', req.body);
-        const { content, password, duration, customUrl, maxViews } = req.body;
+        const { filename, content, password, duration, customUrl, maxViews} = req.body;
 
         // 验证必需字段
         if (!content) {
@@ -51,6 +51,7 @@ router.post('/', async (req, res) => {
         const share = new Share({
             id: uuidv4(),
             type: 'text',
+            filename: filename,
             content,
             password: hashedPassword,
             expiresAt,
@@ -136,10 +137,14 @@ router.get('/:id', async (req, res) => {
         res.json({
             success: true,
             data: {
+                type: 'text',
+                filename: share.filename,
                 content: share.content,
                 created: share.created,
                 views: share.views,
-                expiresAt: share.expiresAt
+                expiresAt: share.expiresAt,
+                maxViews: share.maxViews || 0,
+                hasPassword: !!share.password
             }
         });
     } catch (err) {

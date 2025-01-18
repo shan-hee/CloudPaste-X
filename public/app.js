@@ -850,6 +850,36 @@ function initEditor() {
     const splitPreview = document.querySelector('.split-preview .preview-content');
     const charCount = document.getElementById('charCount');
     
+    // 添加撤销/重做支持
+    [textContent, splitEditor].forEach(textarea => {
+        if (textarea) {
+            // 确保文本区域可以撤销/重做
+            textarea.setAttribute('data-enable-grammarly', 'false');
+            
+            // 监听按键事件以支持常用的撤销/重做快捷键
+            textarea.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    if (e.shiftKey) {
+                        // Ctrl+Shift+Z 或 Command+Shift+Z 重做
+                        e.preventDefault();
+                        document.execCommand('redo');
+                        updatePreview();
+                    } else {
+                        // Ctrl+Z 或 Command+Z 撤销
+                        e.preventDefault();
+                        document.execCommand('undo');
+                        updatePreview();
+                    }
+                } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                    // Ctrl+Y 或 Command+Y 重做
+                    e.preventDefault();
+                    document.execCommand('redo');
+                    updatePreview();
+                }
+            });
+        }
+    });
+
     // 恢复草稿
     const savedDraft = localStorage.getItem('cloudpaste_draft');
     if (savedDraft) {
@@ -1079,7 +1109,12 @@ function handleToolbarAction(action, textarea) {
             replacement = '\n| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |\n';
                 break;
         case 'clear':
-            textarea.value = '';
+            textarea.focus();
+            // 保存当前内容到撤销栈
+            const oldContent = textarea.value;
+            // 使用 execCommand 执行删除操作以支持撤销
+            textarea.select();
+            document.execCommand('delete', false);
             updatePreview();
             return;
         case 'math':
@@ -1095,6 +1130,14 @@ function handleToolbarAction(action, textarea) {
             replacement = `$${selection || 'E = mc^2'}$`;
             cursorOffset = selection ? 0 : -1;
             break;
+        case 'undo':
+            document.execCommand('undo');
+            updatePreview();
+            return;
+        case 'redo':
+            document.execCommand('redo');
+            updatePreview();
+            return;
     }
     
     // 插入文本

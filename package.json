@@ -1,7 +1,7 @@
 {
-  "name": "cloudpaste",
+  "name": "cloudpaste-x",
   "version": "1.0.0",
-  "description": "CloudPaste - A secure file sharing service",
+  "description": "CloudPaste-X - A secure file sharing service",
   "main": "src/index.js",
   "scripts": {
     "build": "echo 'No build step required'",

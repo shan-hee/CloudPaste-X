@@ -1,6 +1,6 @@
-# CloudPaste-SH
+# CloudPaste-X
 
-CloudPaste-SH 是一个现代化的在线文本分享平台，支持 Markdown 编辑和实时预览功能。它提供了一个简洁优雅的界面，让用户可以轻松地分享和管理文本内容。
+CloudPaste-X 是一个现代化的在线文本分享平台，支持 Markdown 编辑和实时预览功能。它提供了一个简洁优雅的界面，让用户可以轻松地分享和管理文本内容。
 
 ## 项目说明
 
@@ -85,7 +85,7 @@ CloudPaste-SH 是一个现代化的在线文本分享平台，支持 Markdown �
 
 点击下面的按钮，可以一键将项目部署到 Cloudflare Workers：
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shan-hee/CloudPaste-SH)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shan-hee/CloudPaste-X)
 
 ### 👷 GitHub Actions 自动部署
 
@@ -179,7 +179,7 @@ wrangler deploy
 ### 项目结构
 
 ```
-CloudPaste-SH/
+CloudPaste-X/
 ├── public/          # 静态资源
 ├── src/             # Worker 源码
 ├── wrangler.toml    # Cloudflare Workers 配置

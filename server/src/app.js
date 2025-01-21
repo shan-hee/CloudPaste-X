@@ -1,181 +1,122 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const path = require('path');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import compression from 'compression';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
+import actuator from 'express-actuator';
+import promMiddleware from 'express-prometheus-middleware';
 
-// 导入路由
-console.log('开始导入路由模块...');
-const textRoutes = require('./routes/text');
-const fileRoutes = require('./routes/file');
-const shareRoutes = require('./routes/share');
-console.log('路由模块导入完成');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 
-// 中间件
-console.log('配置中间件...');
-app.use(cors());
-app.use(morgan('dev'));
+// 基础中间件配置
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  credentials: true
+}));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(compression());
 
-// 添加请求日志中间件
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] 收到请求: ${req.method} ${req.url}`);
-    console.log('请求头:', req.headers);
-    next();
+// 配置 Helmet 安全头
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "cdnjs.cloudflare.com", "cdn.jsdelivr.net"],
+        styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "fonts.googleapis.com", "cdn.jsdelivr.net"],
+        fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com", "cdn.jsdelivr.net", "data:"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+  })
+);
+
+app.use(cookieParser(process.env.COOKIE_SECRET));
+
+// Session配置
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.ENABLE_HTTPS === 'true',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24小时
+  }
+}));
+
+// 速率限制
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100
 });
+app.use('/api/', limiter);
 
-// 路由
-console.log('开始注册路由...');
-app.use('/api/text', textRoutes);
-app.use('/api/file', fileRoutes);
-app.use('/api/share', shareRoutes);
-console.log('路由注册完成');
-
-// 打印已注册的路由
-console.log('\n=== 已注册的路由 ===');
-function printRoutes(stack, basePath = '') {
-    stack.forEach(layer => {
-        if (layer.route) {
-            const methods = Object.keys(layer.route.methods).join(',');
-            console.log(`${methods.toUpperCase()} ${basePath}${layer.route.path}`);
-        } else if (layer.name === 'router') {
-            console.log(`\n=== 子路由 ${layer.regexp} ===`);
-            printRoutes(layer.handle.stack, basePath + layer.regexp.toString().replace('/^', '').replace('/(?=\\/|$)/i', ''));
-        }
-    });
-}
-printRoutes(app._router.stack);
-console.log('\n=== 路由打印完成 ===\n');
+// 监控中间件
+app.use(actuator());
+app.use(promMiddleware({
+  metricsPath: '/metrics',
+  collectDefaultMetrics: true,
+  requestDurationBuckets: [0.1, 0.5, 1, 1.5, 2, 3, 5]
+}));
 
 // 静态文件服务
 app.use(express.static(path.join(__dirname, '../../public')));
 
-// 处理分享链接路由
-app.get('/s/:id', async (req, res) => {
-    try {
-        const share = await require('./models/Share').findOne({
-            $or: [
-                { id: req.params.id },
-                { customUrl: req.params.id }
-            ]
-        });
-
-        if (!share) {
-            return res.status(404).json({
-                success: false,
-                message: '分享不存在或已过期'
-            });
-        }
-
-        // 检查请求类型
-        const isApiRequest = req.xhr || 
-                           req.headers.accept.includes('application/json') ||
-                           req.headers['content-type']?.includes('application/json');
-
-        if (isApiRequest) {
-            // API请求返回JSON数据
-            return res.json({
-                success: true,
-                data: {
-                    type: share.type,
-                    content: share.content,
-                    created: share.created,
-                    views: share.views,
-                    expiresAt: share.expiresAt
-                }
-            });
-        }
-
-        // 页面请求返回HTML
-        res.sendFile(path.join(__dirname, '../../public/share.html'));
-    } catch (err) {
-        console.error('获取分享内容时出错:', err);
-        res.status(500).json({
-            success: false,
-            message: err.message || '服务器内部错误'
-        });
-    }
+// 健康检查
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'UP',
+    timestamp: new Date(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: process.version
+  });
 });
 
-// 更新分享内容
-app.put('/s/:id', async (req, res) => {
-    try {
-        const { content, maxViews } = req.body;
-        
-        // 验证必需字段
-        if (!content) {
-            return res.status(400).json({
-                success: false,
-                message: '内容不能为空'
-            });
-        }
+// 导入路由
+import shareRoutes from './routes/share.js';
+import adminRoutes from './routes/admin.js';
+import fileRoutes from './routes/file.js';
 
-        const share = await require('./models/Share').findOne({
-            $or: [
-                { id: req.params.id },
-                // { customUrl: req.params.id }
-            ]
-        });
+// 注册路由
+app.use('/api/share', shareRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/file', fileRoutes);
 
-        if (!share) {
-            return res.status(404).json({
-                success: false,
-                message: '分享不存在或已过期'
-            });
-        }
-
-        // 更新内容和访问次数
-        share.content = content;
-        if (typeof maxViews === 'number') {
-            share.maxViews = maxViews;
-        }
-        
-        await share.save();
-
-        res.json({
-            success: true,
-            message: '更新成功',
-            data: {
-                content: share.content,
-                views: share.views,
-                maxViews: share.maxViews
-            }
-        });
-    } catch (err) {
-        console.error('更新分享内容失败:', err);
-        res.status(500).json({
-            success: false,
-            message: err.message || '更新分享内容失败'
-        });
-    }
+// 404 处理
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: '请求的资源不存在'
+  });
 });
 
 // 错误处理中间件
 app.use((err, req, res, next) => {
-    console.error('错误:', err);
-    res.status(err.status || 500).json({
-        success: false,
-        message: err.message || '服务器内部错误'
-    });
+  console.error('错误:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message
+  });
 });
 
-// 404 处理
-app.use((req, res) => {
-    console.log('404 请求:', req.method, req.url);
-    res.status(404).json({
-        success: false,
-        message: '请求的资源不存在'
-    });
-});
-
-// 启动服务器
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`服务器运行在 http://localhost:${PORT}`);
-    console.log('\n=== 服务器启动完成 ===\n');
-});
-
-module.exports = app; 
+export default app; 

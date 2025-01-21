@@ -1,17 +1,78 @@
 {
   "name": "cloudpaste-x",
   "version": "1.0.0",
-  "description": "CloudPaste-X - A secure file sharing service",
-  "main": "src/index.js",
+  "description": "CloudPaste-X file sharing application",
+  "main": "server/src/app.js",
+  "type": "module",
   "scripts": {
-    "build": "echo 'No build step required'",
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev"
+    "dev": "cross-env NODE_ENV=development nodemon server.js",
+    "start": "cross-env NODE_ENV=production node server.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "docker:build": "docker build -t cloudpaste-x .",
+    "docker:run": "docker run -p 3000:3000 cloudpaste-x",
+    "security:audit": "npm audit"
   },
+  "keywords": [
+    "file-sharing",
+    "clipboard",
+    "web-app"
+  ],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "hono": "^3.12.0"
+    "@aws-sdk/client-s3": "^3.731.1",
+    "@aws-sdk/s3-request-presigner": "^3.731.1",
+    "aws-sdk": "^2.1574.0",
+    "compression": "^1.7.5",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.3",
+    "express-actuator": "^1.8.4",
+    "express-prometheus-middleware": "^1.2.0",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.18.1",
+    "express-validator": "^7.0.0",
+    "helmet": "^7.2.0",
+    "http-errors": "^2.0.0",
+    "memory-cache": "^0.2.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "sanitize-html": "^2.12.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
-    "wrangler": "^3.0.0"
+    "@testing-library/dom": "^9.3.4",
+    "@testing-library/jest-dom": "^6.6.3",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.0.0",
+    "husky": "^9.0.0",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "lint-staged": "^15.0.0",
+    "nodemon": "^3.0.0",
+    "prettier": "^3.0.0",
+    "supertest": "^6.3.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm test"
+    }
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   }
 }

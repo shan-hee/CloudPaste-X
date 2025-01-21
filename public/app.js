@@ -7,20 +7,19 @@ let currentFileUpload = null;
 
 // 初始化所有功能
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // 优先获取统计数据
-    fetchShareStats().then(() => {
-    }).catch(error => {
-        console.error('获取统计数据失败:', error);
-    });
-    
-    // 初始化主题切换
-    initThemeToggle();
-    
     // 检查当前页面
     const isMainPage = window.location.pathname === '/' || window.location.pathname === '/index.html';
     
     if (isMainPage) {
+        // 优先获取统计数据
+        fetchShareStats().then(() => {
+        }).catch(error => {
+            console.error('获取统计数据失败:', error);
+        });
+        
+        // 初始化主题切换
+        initThemeToggle();
+        
         // 只在主页面初始化这些功能
         initTabSwitching();
         initFileUpload();
@@ -32,6 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
         initFileSubmit();
         initPasswordToggle();
         initPasswordProtection();
+        
+        // 初始化存储列表
+        fetchStorageList().catch(error => {
+            console.error('获取存储列表失败:', error);
+        });
+    } else {
+        // 非主页面只初始化主题切换
+        initThemeToggle();
     }
 });
 
@@ -63,18 +70,17 @@ function initTextSubmit() {
                 submitTextBtn.disabled = true;
                 submitTextBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
 
-                const response = await fetch('/api/text', {
+                const response = await fetch('/api/share', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         content: textContent,
+                        filename: filename || 'CloudPaste-Text',
                         password: password || undefined,
-                        duration,
-                        maxViews,
-                        filename: filename,
-                        isUserUpload: true
+                        expiresIn: duration || undefined,  // 直接使用原始格式
+                        maxViews: maxViews || undefined  // 如果是0则不发送
                     })
                 });
 
@@ -91,7 +97,7 @@ function initTextSubmit() {
                     shareResult.style.display = 'block';
                     shareResult.classList.remove('error');
                     shareResult.classList.add('success');
-                    shareLink.value = `${window.location.origin}${result.data.url}`;
+                    shareLink.value = `${window.location.origin}/s/${result.data.id}`;
                     
                     // 更新字符数显示
                     const charCount = document.getElementById('textContent').value.length;
@@ -323,9 +329,9 @@ function initUploadToggles() {
     // 从服务器获取初始状态
     fetch('/api/admin/settings')
         .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const { textUploadEnabled, fileUploadEnabled } = data.settings;
+        .then(({ data }) => {
+            if (data) {
+                const { textUploadEnabled, fileUploadEnabled } = data;
                 
                 // 设置按钮状态
                 textUploadBtn.checked = textUploadEnabled;
@@ -646,10 +652,10 @@ function initAdminPanel() {
     async function initSwitchStates() {
         try {
             const response = await fetch('/api/admin/settings');
-            const data = await response.json();
-            if (data.success) {
-                textUploadBtn.checked = data.settings.textUploadEnabled;
-                fileUploadBtn.checked = data.settings.fileUploadEnabled;
+            const { data } = await response.json();
+            if (data) {
+                textUploadBtn.checked = data.textUploadEnabled;
+                fileUploadBtn.checked = data.fileUploadEnabled;
             }
         } catch (error) {
             console.error('获取设置失败:', error);
@@ -761,9 +767,9 @@ function initAdminPanel() {
 async function checkUploadEnabled(type) {
     try {
         const response = await fetch('/api/admin/settings');
-        const data = await response.json();
-        if (data.success) {
-            const enabled = type === 'text' ? data.settings.textUploadEnabled : data.settings.fileUploadEnabled;
+        const { success, data } = await response.json();
+        if (success) {
+            const enabled = type === 'text' ? data.textUploadEnabled : data.fileUploadEnabled;
             if (!enabled) {
                 showToast(`${type === 'text' ? '文本' : '文件'}上传功能已关闭`, 'error');
                 return false;
@@ -1980,46 +1986,77 @@ function addStorageItemEventListeners(container = document) {
 }
 
 // 在刷新列表时调用
-document.getElementById('refreshList').addEventListener('click', async (e) => {
-    const refreshBtn = e.currentTarget;
-    refreshBtn.classList.add('loading');
-    refreshBtn.disabled = true;
-    
-    try {
-        await fetchStorageList();
-        await fetchShareStats();
-    } finally {
-        refreshBtn.classList.remove('loading');
-        refreshBtn.disabled = false;
-    }
-});
+const refreshListBtn = document.getElementById('refreshList');
+if (refreshListBtn) {
+    refreshListBtn.addEventListener('click', async (e) => {
+        const refreshBtn = e.currentTarget;
+        refreshBtn.classList.add('loading');
+        refreshBtn.disabled = true;
+        
+        try {
+            await fetchStorageList();
+            await fetchShareStats();
+        } finally {
+            refreshBtn.classList.remove('loading');
+            refreshBtn.disabled = false;
+        }
+    });
+}
 
 // 初始化时调用
 document.addEventListener('DOMContentLoaded', () => {
-    fetchStorageList();
-    initShareFilters();
+    // 检查当前页面
+    const isMainPage = window.location.pathname === '/' || window.location.pathname === '/index.html';
+    
+    if (isMainPage) {
+        // 优先获取统计数据
+        fetchShareStats().then(() => {
+        }).catch(error => {
+            console.error('获取统计数据失败:', error);
+        });
+        
+        // 初始化主题切换
+        initThemeToggle();
+        
+        // 只在主页面初始化这些功能
+        initTabSwitching();
+        initFileUpload();
+        initAdminPanel();
+        initEditor();
+        initShareFilters();
+        initTextSubmit();
+        initUploadToggles();
+        initFileSubmit();
+        initPasswordToggle();
+        initPasswordProtection();
+        
+        // 初始化存储列表
+        fetchStorageList().catch(error => {
+            console.error('获取存储列表失败:', error);
+        });
+    } else {
+        // 非主页面只初始化主题切换
+        initThemeToggle();
+    }
 });
 
 // Toast 通知功能
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `vt-ast vt-ast-${type}`;
-    toast.innerHTML = `
-        <div class="vt-ast-content">
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-            <span>${message}</span>
-        </div>
-    `;
-    document.body.appendChild(toast);
-
-    // 添加显示类以触发动画
-    setTimeout(() => toast.classList.add('show'), 10);
-
-    // 3秒后移除
+function showToast(message, type = 'info', duration = 2000) {
+    const toast = document.getElementById('toast');
+    if (!toast) {
+        const toastDiv = document.createElement('div');
+        toastDiv.id = 'toast';
+        toastDiv.className = `toast ${type}`;
+        document.body.appendChild(toastDiv);
+    }
+    
+    const toastElement = document.getElementById('toast');
+    toastElement.textContent = message;
+    toastElement.className = `toast ${type} show`;
+    
     setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+        toastElement.className = toastElement.className.replace('show', '');
+    }, duration);
 }
 
 // 添加 Toast 样式
@@ -2412,26 +2449,6 @@ function toggleQRCode(url) {
     });
 }
 
-// 显示Toast提示
-function showToast(message = '内容已复制到剪贴板', duration = 2000) {
-    const toast = document.getElementById('toast');
-    const messageSpan = toast.querySelector('span');
-    messageSpan.textContent = message;
-    
-    // 清除之前的定时器
-    if (toast.hideTimeout) {
-        clearTimeout(toast.hideTimeout);
-    }
-    
-    // 显示 toast
-    toast.classList.add('show');
-    
-    // 设置定时器隐藏 toast
-    toast.hideTimeout = setTimeout(() => {
-        toast.classList.remove('show');
-    }, duration);
-}
-
 // 显示登录对话框
 function showLoginDialog() {
     return new Promise((resolve) => {
@@ -2756,56 +2773,27 @@ function initPasswordProtection() {
     }
 }
 
-// 修改文本提交处理函数
-async function submitTextHandler() {
-    // ... existing code ...
-    
-    const password = document.getElementById('textPassword')?.value;
-    const usePassword = document.getElementById('passwordToggle')?.checked;
-    
-    const formData = new FormData();
-    formData.append('content', textContent.value);
-    formData.append('expiration', document.getElementById('textDuration').value);
-    formData.append('maxViews', document.getElementById('textMaxViews').value);
-    if (usePassword && password) {
-        formData.append('password', password);
-    }
-    
-    try {
-        // ... existing code ...
-    } catch (error) {
-        // ... existing code ...
-    }
-}
+// ... existing code ... 
 
-// 修改文件提交处理函数
-async function submitFileHandler() {
-    // ... existing code ...
-    
-    const password = document.getElementById('sharePassword')?.value;
-    const usePassword = document.getElementById('passwordToggle')?.checked;
-    
-    const formData = new FormData();
-    for (const file of selectedFiles) {
-        formData.append('files', file);
-    }
-    formData.append('expiration', document.getElementById('expiration').value);
-    formData.append('maxViews', document.getElementById('maxViews').value);
-    if (usePassword && password) {
-        formData.append('password', password);
-    }
-    
-    try {
-        // ... existing code ...
-    } catch (error) {
-        // ... existing code ...
-    }
+// 将持续时间转换为秒数
+function getDurationInSeconds(duration) {
+    const durationMap = {
+        '1h': 60 * 60,
+        '1d': 24 * 60 * 60,
+        '7d': 7 * 24 * 60 * 60,
+        '30d': 30 * 24 * 60 * 60
+    };
+    return durationMap[duration] || null;
 }
-
-// 在文档加载完成后初始化密码保护功能
-document.addEventListener('DOMContentLoaded', () => {
-    // ... existing code ...
-    initPasswordProtection();
-});
 
 // ... existing code ... 
+
+// 创建表单包装
+document.querySelectorAll('input[type="password"]').forEach(input => {
+  if (!input.form) {
+    const form = document.createElement('form');
+    form.setAttribute('autocomplete', 'off');
+    input.parentNode.insertBefore(form, input);
+    form.appendChild(input);
+  }
+});

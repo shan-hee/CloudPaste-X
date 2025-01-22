@@ -2,8 +2,7 @@
   "name": "cloudpaste-x",
   "version": "1.0.0",
   "description": "CloudPaste-X file sharing application",
-  "main": "server/src/app.js",
-  "type": "module",
+  "main": "src/index.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon server.js",
     "start": "cross-env NODE_ENV=production node server.js",
@@ -29,6 +28,7 @@
     "@aws-sdk/client-s3": "^3.731.1",
     "@aws-sdk/s3-request-presigner": "^3.731.1",
     "aws-sdk": "^2.1574.0",
+    "bcrypt": "^5.1.1",
     "compression": "^1.7.5",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -47,6 +47,7 @@
     "sanitize-html": "^2.12.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
+    "uuid": "^11.0.5",
     "winston": "^3.17.0"
   },
   "devDependencies": {

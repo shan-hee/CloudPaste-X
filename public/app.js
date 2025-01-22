@@ -7,19 +7,20 @@ let currentFileUpload = null;
 
 // 初始化所有功能
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // 优先获取统计数据
+    fetchShareStats().then(() => {
+    }).catch(error => {
+        console.error('获取统计数据失败:', error);
+    });
+    
+    // 初始化主题切换
+    initThemeToggle();
+    
     // 检查当前页面
     const isMainPage = window.location.pathname === '/' || window.location.pathname === '/index.html';
     
     if (isMainPage) {
-        // 优先获取统计数据
-        fetchShareStats().then(() => {
-        }).catch(error => {
-            console.error('获取统计数据失败:', error);
-        });
-        
-        // 初始化主题切换
-        initThemeToggle();
-        
         // 只在主页面初始化这些功能
         initTabSwitching();
         initFileUpload();
@@ -31,14 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
         initFileSubmit();
         initPasswordToggle();
         initPasswordProtection();
-        
-        // 初始化存储列表
-        fetchStorageList().catch(error => {
-            console.error('获取存储列表失败:', error);
-        });
-    } else {
-        // 非主页面只初始化主题切换
-        initThemeToggle();
     }
 });
 
@@ -70,17 +63,19 @@ function initTextSubmit() {
                 submitTextBtn.disabled = true;
                 submitTextBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
 
-                const response = await fetch('/api/share', {
+                const response = await fetch('/api/share/text', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-Session-Id': localStorage.getItem('sessionId')
                     },
                     body: JSON.stringify({
+                        type: 'text',
                         content: textContent,
-                        filename: filename || 'CloudPaste-Text',
+                        filename: filename,
                         password: password || undefined,
-                        expiresIn: duration || undefined,  // 直接使用原始格式
-                        maxViews: maxViews || undefined  // 如果是0则不发送
+                        duration: duration || undefined,
+                        maxViews: maxViews || undefined
                     })
                 });
 
@@ -97,7 +92,7 @@ function initTextSubmit() {
                     shareResult.style.display = 'block';
                     shareResult.classList.remove('error');
                     shareResult.classList.add('success');
-                    shareLink.value = `${window.location.origin}/s/${result.data.id}`;
+                    shareLink.value = `${window.location.origin}${result.data.url}`;
                     
                     // 更新字符数显示
                     const charCount = document.getElementById('textContent').value.length;
@@ -106,55 +101,18 @@ function initTextSubmit() {
                         charCountSpan.innerHTML = `<i class="fas fa-text-width"></i>${charCount} 字符`;
                     }
 
-                    // 更新过期时间和最大访问次数
-                    if (result.data.expiresAt) {
-                        const expiresAtSpan = shareResult.querySelector('.expires-at');
-                        if (expiresAtSpan) {
-                            expiresAtSpan.textContent = new Date(result.data.expiresAt).toLocaleString();
-                            expiresAtSpan.style.display = 'inline';
-                            expiresAtSpan.style.fontWeight = 'normal';  // 恢复正常字重
-                        }
-                    } else {
-                        const expiresAtSpan = shareResult.querySelector('.expires-at');
-                        if (expiresAtSpan) {
-                            expiresAtSpan.style.display = 'none';
-                        }
-                    }
-                    
-                    if (result.data.maxViews > 0) {
-                        const maxViewsSpan = shareResult.querySelector('.max-views');
-                        if (maxViewsSpan) {
-                            maxViewsSpan.textContent = result.data.maxViews;
-                            maxViewsSpan.style.display = 'inline';
-                        }
-                    } else {
-                        const maxViewsSpan = shareResult.querySelector('.max-views');
-                        if (maxViewsSpan) {
-                            maxViewsSpan.style.display = 'none';
-                        }
-                    }
+                    // 更新分享列表和统计数据
+                    await Promise.all([
+                        fetchStorageList(),
+                        fetchShareStats()
+                    ]);
 
-                    // 清空表单
+                    // 清空输入框
                     document.getElementById('textContent').value = '';
                     document.getElementById('textPassword').value = '';
-                    document.getElementById('textDuration').value = '1h';
-                    document.getElementById('textMaxViews').value = '0';
                     document.getElementById('textCustomUrl').value = '';
-                    document.getElementById('charCount').textContent = '0 字符';
-
-                    // 添加到存储列表并更新统计
-                    await Promise.all([
-                        displayStorageList(null, {
-                            type: 'text',
-                            id: result.data.id,
-                            expiresAt: result.data.expiresAt,
-                            content: textContent,
-                            isUserUpload: true,
-                            filename: filename
-                        }),
-                        fetchShareStats(),
-                        fetchStorageList()
-                    ]);
+                    document.getElementById('textMaxViews').value = '';
+                    document.getElementById('textDuration').value = 'never';
                 } else {
                     shareResult.style.display = 'block';
                     shareResult.classList.add('error');
@@ -327,11 +285,15 @@ function initUploadToggles() {
     const fileUploadBtn = document.getElementById('fileUploadBtn');
     
     // 从服务器获取初始状态
-    fetch('/api/admin/settings')
+    fetch('/api/admin/settings', {
+        headers: {
+            'X-Session-Id': localStorage.getItem('sessionId')
+        }
+    })
         .then(response => response.json())
-        .then(({ data }) => {
-            if (data) {
-                const { textUploadEnabled, fileUploadEnabled } = data;
+        .then(data => {
+            if (data.success) {
+                const { textUploadEnabled, fileUploadEnabled } = data.data;
                 
                 // 设置按钮状态
                 textUploadBtn.checked = textUploadEnabled;
@@ -345,6 +307,15 @@ function initUploadToggles() {
         .catch(error => {
             console.error('获取上传设置失败:', error);
             showToast('获取设置失败', 'error');
+            // 如果是401错误，显示登录对话框
+            if (error.status === 401) {
+                showLoginDialog().then(success => {
+                    if (success) {
+                        // 重新加载页面以刷新状态
+                        window.location.reload();
+                    }
+                });
+            }
         });
 
     // 添加点击事件
@@ -651,11 +622,15 @@ function initAdminPanel() {
     // 初始化开关状态
     async function initSwitchStates() {
         try {
-            const response = await fetch('/api/admin/settings');
-            const { data } = await response.json();
-            if (data) {
-                textUploadBtn.checked = data.textUploadEnabled;
-                fileUploadBtn.checked = data.fileUploadEnabled;
+            const response = await fetch('/api/admin/settings', {
+                headers: {
+                    'X-Session-Id': localStorage.getItem('sessionId')
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                textUploadBtn.checked = data.data.textUploadEnabled;
+                fileUploadBtn.checked = data.data.fileUploadEnabled;
             }
         } catch (error) {
             console.error('获取设置失败:', error);
@@ -673,13 +648,18 @@ function initAdminPanel() {
                     'X-Session-Id': localStorage.getItem('sessionId')
                 },
                 body: JSON.stringify({
-                    type,
-                    enabled
+                    textUploadEnabled: type === 'text' ? enabled : textUploadBtn.checked,
+                    fileUploadEnabled: type === 'file' ? enabled : fileUploadBtn.checked
                 })
             });
             
             const data = await response.json();
             if (data.success) {
+                // 使用服务器返回的状态更新UI
+                textUploadBtn.checked = data.data.textUploadEnabled;
+                fileUploadBtn.checked = data.data.fileUploadEnabled;
+                updateUploadUI('text', data.data.textUploadEnabled);
+                updateUploadUI('file', data.data.fileUploadEnabled);
                 showToast(`${type === 'text' ? '文本' : '文件'}上传功能已${enabled ? '开启' : '关闭'}`, 'success');
             } else {
                 throw new Error(data.message);
@@ -690,8 +670,10 @@ function initAdminPanel() {
             // 恢复开关状态
             if (type === 'text') {
                 textUploadBtn.checked = !enabled;
+                updateUploadUI('text', !enabled);
             } else {
                 fileUploadBtn.checked = !enabled;
+                updateUploadUI('file', !enabled);
             }
         }
     }
@@ -766,10 +748,14 @@ function initAdminPanel() {
 // 在提交文本和文件之前验证功能是否开启
 async function checkUploadEnabled(type) {
     try {
-        const response = await fetch('/api/admin/settings');
-        const { success, data } = await response.json();
-        if (success) {
-            const enabled = type === 'text' ? data.textUploadEnabled : data.fileUploadEnabled;
+        const response = await fetch('/api/admin/settings', {
+            headers: {
+                'X-Session-Id': localStorage.getItem('sessionId')
+            }
+        });
+        const data = await response.json();
+        if (data.success) {
+            const enabled = type === 'text' ? data.data.textUploadEnabled : data.data.fileUploadEnabled;
             if (!enabled) {
                 showToast(`${type === 'text' ? '文本' : '文件'}上传功能已关闭`, 'error');
                 return false;
@@ -1249,9 +1235,8 @@ function createShareItem(share) {
     const displayId = (share.id || '').split('-')[0];
 
     return `
-        <div class="share-item" data-id="${share.id}" data-type="${share.type}">
             <div class="share-item-info">
-                <div class="share-item-line">ID: <span class="share-id" title="点击查看分享" onclick="window.location.href='/s/${share.id}'">${displayId}</span></div>
+                <div class="share-item-line">ID: <span class="share-id" title="点击查看分享" data-id="${share.id}">${displayId}</span></div>
                 <div class="share-item-line">文件名: ${isFile ? (share.originalname || share.filename) : (share.filename || 'CloudPaste-Text')}</div>
                 <div class="share-item-line">创建时间: ${createdTime}</div>
                 <div class="share-item-line">过期时间: ${expirationTime}</div>
@@ -1264,7 +1249,6 @@ function createShareItem(share) {
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
-        </div>
     `;
 }
 
@@ -1601,14 +1585,8 @@ function initFileSubmit() {
                         resolve({ ok: false, cancelled: true });
                     });
 
-                    xhr.open('POST', '/api/file');
+                    xhr.open('POST', '/api/share/file');
                     xhr.send(formData);
-                }).catch(error => {
-                    // 如果是取消上传或网络连接丢失，不显示错误
-                    if (currentXhr === null || (error.message && (error.message.includes('Network') || error.message.includes('connection')))) {
-                        return { ok: false, cancelled: true };
-                    }
-                    throw error;
                 });
 
                 // 检查是否是取消上传或网络连接丢失
@@ -1794,23 +1772,40 @@ function initFileSubmit() {
 
 // 获取分享统计数据
 async function fetchShareStats() {
+    const sessionId = localStorage.getItem('sessionId');
+    if (!sessionId) {
+        return;
+    }
+
     try {
         // 获取统计数据
-        const response = await fetch('/api/share/stats');
+        const response = await fetch('/api/admin/stats', {
+            headers: {
+                'X-Session-Id': sessionId
+            }
+        });
+
         if (!response.ok) {
+            if (response.status === 401) {
+                localStorage.removeItem('sessionId');
+                return;
+            }
             throw new Error('获取统计数据失败');
         }
         const data = await response.json();
         
         if (data.success) {
             // 更新统计数据显示
-            document.getElementById('totalShares').textContent = data.data.totalShares;
-            document.getElementById('activeShares').textContent = data.data.activeShares;
-            document.getElementById('usedStorage').textContent = formatFileSize(data.data.usedStorage);
-            document.getElementById('totalStorage').textContent = formatFileSize(data.data.totalStorage);
+            document.getElementById('totalShares').textContent = data.data.total || 0;
+            document.getElementById('activeShares').textContent = data.data.active || 0;
             
-            // 计算并更新使用百分比
-            const usagePercent = data.data.usagePercent;
+            // 更新存储空间使用情况
+            const usedStorage = data.data.storage.used;
+            const totalStorage = data.data.storage.total;
+            const usagePercent = data.data.storage.percent;
+            
+            document.getElementById('usedStorage').textContent = formatFileSize(usedStorage);
+            document.getElementById('totalStorage').textContent = formatFileSize(totalStorage);
             document.getElementById('usagePercent').textContent = `${usagePercent}%`;
             
             // 更新进度条
@@ -1840,20 +1835,33 @@ async function fetchShareStats() {
         }
     } catch (error) {
         console.error('获取统计数据失败:', error);
-        showToast('获取统计数据失败', 3000);
     }
 }
 
 // 获取存储列表
 async function fetchStorageList() {
+    const sessionId = localStorage.getItem('sessionId');
+    if (!sessionId) {
+        return;
+    }
+
     const shareItems = document.getElementById('shareItems');
-    
     try {
         // 添加loading类来触发加载动画
         shareItems.classList.add('loading');
 
-        const response = await fetch('/api/share');
+        const response = await fetch('/api/share', {
+            headers: {
+                'X-Session-Id': sessionId
+            }
+        });
+
         if (!response.ok) {
+            if (response.status === 401) {
+                // 清除无效的 sessionId
+                localStorage.removeItem('sessionId');
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
@@ -1861,7 +1869,7 @@ async function fetchStorageList() {
         
         if (data.success) {
             shareItems.innerHTML = ''; // 清空现有内容
-            displayStorageList(data.data.shares);
+            displayStorageList(data.data);
         } else {
             throw new Error(data.message || '获取存储列表失败');
         }
@@ -1872,7 +1880,7 @@ async function fetchStorageList() {
                 <i class="fas fa-exclamation-circle"></i>
                 <p>获取存储列表失败: ${err.message}</p>
                 <button onclick="fetchStorageList()" class="retry-btn">
-                    <i class="fas fa-redo"></i> 重试
+                    <i class="fas fa-sync"></i> 重试
                 </button>
             </div>
         `;
@@ -1883,78 +1891,30 @@ async function fetchStorageList() {
 }
 
 // 显示存储列表
-function displayStorageList(shares, newItem = null) {
+function displayStorageList(data) {
     const shareItems = document.getElementById('shareItems');
     
-    // 如果是新项插入，直接添加到列表中
-    if (newItem) {
-        const newItemHtml = createShareItem({
-            id: newItem.filename || newItem.id,
-            type: newItem.type,
-            expiration: newItem.expiresAt,
-            size: newItem.filesize || newItem.size || 0,
-            filename: newItem.filename,
-            originalname: newItem.originalname,
-            createdAt: newItem.createdAt || newItem.created || Date.now()
-        });
-        
-        // 创建一个临时容器来包含新的HTML
-        const temp = document.createElement('div');
-        temp.innerHTML = newItemHtml;
-        const newElement = temp.firstElementChild;
-        
-        // 将新元素插入到列表开头
-        if (shareItems.firstChild) {
-            shareItems.insertBefore(newElement, shareItems.firstChild);
-        } else {
-            shareItems.appendChild(newElement);
-        }
-        
-        // 触发动画
-        requestAnimationFrame(() => {
-            newElement.style.opacity = '1';
-            newElement.style.transform = 'translateY(0)';
-        });
-        
+    if (!data || !data.length) {
+        shareItems.innerHTML = `
+            <div class="empty-state">
+                <p>暂无分享内容</p>
+            </div>
+        `;
         return;
     }
 
-    // 显示完整列表
-    const storageResults = document.createElement('div');
-    storageResults.className = 'storage-results';
+    // 获取当前选中的过滤器类型
+    const currentFilter = document.querySelector('.filter-btn.active')?.getAttribute('data-type') || 'all';
 
-    // 处理分享列表
-    const allShares = shares.map(item => ({
-        id: item.id,
-        type: item.isFile ? 'file' : 'text',
-        content: item.content,
-        expiration: item.expiresAt,
-        filename: item.filename,
-        originalname: item.originalname,
-        createdAt: item.createdAt,
-        size: item.filesize || (item.content ? item.content.length : 0)
-    }));
+    // 生成HTML并添加到容器
+    const html = data.map((item, index) => {
+        const itemHtml = createShareItem(item);
+        const itemType = item.type;
+        const isVisible = currentFilter === 'all' || currentFilter === itemType;
+        return `<div class="share-item ${isVisible ? '' : 'hidden'}" data-id="${item.id}" data-type="${item.type}" style="animation-delay: ${index * 0.1}s">${itemHtml}</div>`;
+    }).join('');
 
-    // 按创建时间排序，最新的在前面
-    allShares.sort((a, b) => {
-        const timeA = new Date(a.createdAt).getTime();
-        const timeB = new Date(b.createdAt).getTime();
-        return timeB - timeA;
-    });
-
-    const sharesList = document.createElement('div');
-    sharesList.className = 'shares-list';
-    sharesList.innerHTML = allShares.map(item => createShareItem(item)).join('');
-
-    storageResults.appendChild(sharesList);
-    shareItems.innerHTML = ''; // 清空现有内容
-    shareItems.appendChild(storageResults);
-
-    // 触发列表项的动画
-    const items = shareItems.children;
-    Array.from(items).forEach((item, index) => {
-        item.style.animationDelay = `${index * 0.1}s`;
-    });
+    shareItems.innerHTML = html;
 
     // 添加事件监听器
     addStorageItemEventListeners();
@@ -1985,77 +1945,51 @@ function addStorageItemEventListeners(container = document) {
 }
 
 // 在刷新列表时调用
-const refreshListBtn = document.getElementById('refreshList');
-if (refreshListBtn) {
-    refreshListBtn.addEventListener('click', async (e) => {
-        const refreshBtn = e.currentTarget;
-        refreshBtn.classList.add('loading');
-        refreshBtn.disabled = true;
-        
-        try {
-            await fetchStorageList();
-            await fetchShareStats();
-        } finally {
-            refreshBtn.classList.remove('loading');
-            refreshBtn.disabled = false;
-        }
-    });
-}
-
-// 初始化时调用
-document.addEventListener('DOMContentLoaded', () => {
-    // 检查当前页面
-    const isMainPage = window.location.pathname === '/' || window.location.pathname === '/index.html';
+document.getElementById('refreshList').addEventListener('click', async (e) => {
+    const refreshBtn = e.currentTarget;
+    refreshBtn.classList.add('loading');
+    refreshBtn.disabled = true;
     
-    if (isMainPage) {
-        // 优先获取统计数据
-        fetchShareStats().then(() => {
-        }).catch(error => {
-            console.error('获取统计数据失败:', error);
-        });
-        
-        // 初始化主题切换
-        initThemeToggle();
-        
-        // 只在主页面初始化这些功能
-        initTabSwitching();
-        initFileUpload();
-        initAdminPanel();
-        initEditor();
-        initShareFilters();
-        initTextSubmit();
-        initUploadToggles();
-        initFileSubmit();
-        initPasswordToggle();
-        initPasswordProtection();
-        
-        // 初始化存储列表
-        fetchStorageList().catch(error => {
-            console.error('获取存储列表失败:', error);
-        });
-    } else {
-        // 非主页面只初始化主题切换
-        initThemeToggle();
+    try {
+        await fetchStorageList();
+        await fetchShareStats();
+    } finally {
+        refreshBtn.classList.remove('loading');
+        refreshBtn.disabled = false;
     }
 });
 
-// Toast 通知功能
-function showToast(message, type = 'info', duration = 2000) {
-    const toast = document.getElementById('toast');
-    if (!toast) {
-        const toastDiv = document.createElement('div');
-        toastDiv.id = 'toast';
-        toastDiv.className = `toast ${type}`;
-        document.body.appendChild(toastDiv);
+// 初始化时调用
+document.addEventListener('DOMContentLoaded', () => {
+    // 只有在已登录状态下才获取列表和统计数据
+    const sessionId = localStorage.getItem('sessionId');
+    if (sessionId) {
+        fetchStorageList();
+        fetchShareStats();
     }
-    
-    const toastElement = document.getElementById('toast');
-    toastElement.textContent = message;
-    toastElement.className = `toast ${type} show`;
-    
+    initShareFilters();
+});
+
+// Toast 通知功能
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `vt-ast vt-ast-${type}`;
+    toast.innerHTML = `
+        <div class="vt-ast-content">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(toast);
+
+    // 添加显示类以触发动画
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // 3秒后移除
     setTimeout(() => {
-        toastElement.className = toastElement.className.replace('show', '');
-    }, duration);
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // 添加 Toast 样式
@@ -2448,6 +2382,26 @@ function toggleQRCode(url) {
     });
 }
 
+// 显示Toast提示
+function showToast(message = '内容已复制到剪贴板', duration = 2000) {
+    const toast = document.getElementById('toast');
+    const messageSpan = toast.querySelector('span');
+    messageSpan.textContent = message;
+    
+    // 清除之前的定时器
+    if (toast.hideTimeout) {
+        clearTimeout(toast.hideTimeout);
+    }
+    
+    // 显示 toast
+    toast.classList.add('show');
+    
+    // 设置定时器隐藏 toast
+    toast.hideTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+    }, duration);
+}
+
 // 显示登录对话框
 function showLoginDialog() {
     return new Promise((resolve) => {
@@ -2772,27 +2726,56 @@ function initPasswordProtection() {
     }
 }
 
-// ... existing code ... 
-
-// 将持续时间转换为秒数
-function getDurationInSeconds(duration) {
-    const durationMap = {
-        '1h': 60 * 60,
-        '1d': 24 * 60 * 60,
-        '7d': 7 * 24 * 60 * 60,
-        '30d': 30 * 24 * 60 * 60
-    };
-    return durationMap[duration] || null;
+// 修改文本提交处理函数
+async function submitTextHandler() {
+    // ... existing code ...
+    
+    const password = document.getElementById('textPassword')?.value;
+    const usePassword = document.getElementById('passwordToggle')?.checked;
+    
+    const formData = new FormData();
+    formData.append('content', textContent.value);
+    formData.append('expiration', document.getElementById('textDuration').value);
+    formData.append('maxViews', document.getElementById('textMaxViews').value);
+    if (usePassword && password) {
+        formData.append('password', password);
+    }
+    
+    try {
+        // ... existing code ...
+    } catch (error) {
+        // ... existing code ...
+    }
 }
 
-// ... existing code ... 
+// 修改文件提交处理函数
+async function submitFileHandler() {
+    // ... existing code ...
+    
+    const password = document.getElementById('sharePassword')?.value;
+    const usePassword = document.getElementById('passwordToggle')?.checked;
+    
+    const formData = new FormData();
+    for (const file of selectedFiles) {
+        formData.append('files', file);
+    }
+    formData.append('expiration', document.getElementById('expiration').value);
+    formData.append('maxViews', document.getElementById('maxViews').value);
+    if (usePassword && password) {
+        formData.append('password', password);
+    }
+    
+    try {
+        // ... existing code ...
+    } catch (error) {
+        // ... existing code ...
+    }
+}
 
-// 创建表单包装
-document.querySelectorAll('input[type="password"]').forEach(input => {
-  if (!input.form) {
-    const form = document.createElement('form');
-    form.setAttribute('autocomplete', 'off');
-    input.parentNode.insertBefore(form, input);
-    form.appendChild(input);
-  }
+// 在文档加载完成后初始化密码保护功能
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing code ...
+    initPasswordProtection();
 });
+
+// ... existing code ... 

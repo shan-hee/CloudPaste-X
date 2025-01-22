@@ -478,11 +478,11 @@ function getFileIcon(mimeType) {
 // 加载分享内容
 async function loadShareContent() {
     try {
-        // 从URL路径中获取shareId
-        const shareId = window.location.pathname.split('/')[2];
+        const urlParams = new URLSearchParams(window.location.search);
+        const shareId = urlParams.get('id');
         
         if (!shareId) {
-            showToast('无效的分享链接', 3000, 'error');
+            showToast('无效的分享链接', 3000);
             return;
         }
         
@@ -534,7 +534,7 @@ async function loadShareContent() {
             
             data = await newResponse.json();
             if (!data.success) {
-                showToast(data.message || '获取内容失败', 3000, 'error');
+                showToast(data.message || '获取内容失败', 'error');
                 continue; // 如果获取失败，继续要求输入密码
             }
             break; // 获取成功，跳出循环
@@ -577,7 +577,6 @@ async function loadShareContent() {
                 document.getElementById('previewModeBtn').style.display = 'inline-flex';
                 document.getElementById('formatSelect').style.display = 'inline-block';
                 document.getElementById('downloadBtn').style.display = 'inline-flex';
-                document.getElementById('copyBtn').style.display = 'inline-flex';
                 shareContent.value = data.data.content;
                 filename.value = data.data.filename;
                 
@@ -586,7 +585,7 @@ async function loadShareContent() {
             }
             
             // 更新信息
-            document.getElementById('createTime').textContent = formatDate(data.data.createdAt);
+            document.getElementById('createTime').textContent = formatDate(data.data.created);
             document.getElementById('viewCount').value = data.data.maxViews || 0;
             
             const expireTimeInput = document.getElementById('expireTime');
@@ -603,11 +602,11 @@ async function loadShareContent() {
                 qrButton.dataset.url = window.location.href;
             }
         } else {
-            showToast(data.message || '加载分享内容失败', 3000, 'error');
+            showToast(data.message || '加载分享内容失败', 3000);
         }
     } catch (error) {
         console.error('加载分享内容失败:', error);
-        showToast('加载分享内容失败', 3000, 'error');
+        showToast('加载分享内容失败', 3000);
     }
 }
 

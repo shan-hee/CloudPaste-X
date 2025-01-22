@@ -37,4 +37,25 @@ const limiter = {
   })
 };
 
-module.exports = limiter; 
+const create = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 默认15分钟
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 默认限制100次请求
+  message: {
+    success: false,
+    message: '请求过于频繁，请稍后再试'
+  }
+});
+
+const access = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 60, // 每分钟60次
+  message: {
+    success: false,
+    message: '访问过于频繁，请稍后再试'
+  }
+});
+
+module.exports = {
+  create,
+  access
+}; 

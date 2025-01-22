@@ -50,13 +50,7 @@ const validateFileShare = (req, res, next) => {
 };
 
 const validateShareAccess = (req, res, next) => {
-  const { password } = req.body;
-  const { id } = req.params;
-
-  if (!id) {
-    return next(new AppError('分享ID不能为空', 400));
-  }
-
+  // 这里可以添加访问验证逻辑
   next();
 };
 

@@ -5,165 +5,213 @@ const { logger } = require('../../utils/logger');
 
 class ShareRepository {
   constructor() {
-    this.db = getDb();
+    // 移除构造函数中的数据库初始化
+  }
+
+  // 获取数据库连接的辅助方法
+  _getDb() {
+    return getDb();
   }
 
   async create(share) {
-    return new Promise((resolve, reject) => {
-      const stmt = this.db.prepare(`
+    try {
+      const db = getDb();
+      const result = await db.run(`
         INSERT INTO shares (
-          id, type, content, filename, password,
-          max_views, views, created_at, expires_at,
-          file_size, mime_type
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      stmt.run(
+          id, type, content, filename, filesize, mimetype,
+          password, max_views, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
         share.id,
         share.type,
         share.content,
         share.filename,
+        share.filesize,
+        share.mimetype,
         share.password,
         share.maxViews,
-        share.views,
-        share.createdAt,
-        share.expiresAt,
-        share.fileSize,
-        share.mimeType,
-        (err) => {
-          if (err) {
-            logger.error('创建分享失败:', err);
-            reject(new AppError('创建分享失败', 500));
-          } else {
-            resolve(share);
-          }
-        }
-      );
-    });
+        share.expiresAt
+      ]);
+      return result;
+    } catch (error) {
+      logger.error('创建分享失败:', error);
+      throw error;
+    }
   }
 
   async findById(id) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT * FROM shares WHERE id = ?`,
-        [id],
-        (err, row) => {
-          if (err) {
-            logger.error('查询分享失败:', err);
-            reject(new AppError('查询分享失败', 500));
-          } else if (!row) {
-            resolve(null);
-          } else {
-            resolve(new Share({
-              id: row.id,
-              type: row.type,
-              content: row.content,
-              filename: row.filename,
-              password: row.password,
-              maxViews: row.max_views,
-              views: row.views,
-              createdAt: row.created_at,
-              expiresAt: row.expires_at,
-              fileSize: row.file_size,
-              mimeType: row.mime_type
-            }));
-          }
-        }
-      );
-    });
+    try {
+      const db = getDb();
+      const share = await db.get('SELECT * FROM shares WHERE id = ?', [id]);
+      if (share) {
+        return {
+          id: share.id,
+          type: share.type,
+          content: share.content,
+          filename: share.filename,
+          filesize: share.filesize,
+          mimetype: share.mimetype,
+          password: share.password,
+          maxViews: share.max_views,
+          views: share.views,
+          createdAt: share.created_at,
+          expiresAt: share.expires_at,
+          url: share.url
+        };
+      }
+      return null;
+    } catch (error) {
+      logger.error('查找分享失败:', error);
+      throw error;
+    }
   }
 
-  async update(share) {
-    return new Promise((resolve, reject) => {
-      const stmt = this.db.prepare(`
-        UPDATE shares SET
-          content = ?,
-          filename = ?,
-          password = ?,
-          max_views = ?,
-          views = ?,
-          expires_at = ?,
-          file_size = ?,
-          mime_type = ?
-        WHERE id = ?
-      `);
-
-      stmt.run(
-        share.content,
-        share.filename,
-        share.password,
-        share.maxViews,
-        share.views,
-        share.expiresAt,
-        share.fileSize,
-        share.mimeType,
-        share.id,
-        (err) => {
-          if (err) {
-            logger.error('更新分享失败:', err);
-            reject(new AppError('更新分享失败', 500));
-          } else {
-            resolve(share);
-          }
-        }
-      );
-    });
+  async incrementViews(id) {
+    try {
+      const db = getDb();
+      await db.run('UPDATE shares SET views = views + 1 WHERE id = ?', [id]);
+    } catch (error) {
+      logger.error('更新访问次数失败:', error);
+      throw error;
+    }
   }
 
   async delete(id) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `DELETE FROM shares WHERE id = ?`,
-        [id],
-        (err) => {
-          if (err) {
-            logger.error('删除分享失败:', err);
-            reject(new AppError('删除分享失败', 500));
-          } else {
-            resolve(true);
-          }
+    try {
+      const db = getDb();
+      await db.run('DELETE FROM shares WHERE id = ?', [id]);
+    } catch (error) {
+      logger.error('删除分享失败:', error);
+      throw error;
+    }
+  }
+
+  async deleteExpired() {
+    try {
+      const db = getDb();
+      const result = await db.run(`
+        DELETE FROM shares 
+        WHERE (expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP)
+        OR (max_views IS NOT NULL AND views >= max_views)
+      `);
+      return result.changes;
+    } catch (error) {
+      logger.error('删除过期分享失败:', error);
+      throw error;
+    }
+  }
+
+  async getStats() {
+    try {
+      const db = getDb();
+      
+      // 获取总分享数和有效分享数
+      const shares = await db.get(`
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE 
+            WHEN (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+            AND (max_views IS NULL OR views < max_views)
+            THEN 1 ELSE 0 END) as active
+        FROM shares
+      `);
+      
+      // 获取文本和文件分享数
+      const typeStats = await db.get(`
+        SELECT 
+          SUM(CASE WHEN type = 'text' THEN 1 ELSE 0 END) as text,
+          SUM(CASE WHEN type = 'file' THEN 1 ELSE 0 END) as file
+        FROM shares
+      `);
+
+      // 获取存储空间使用情况
+      const storage = await db.get(`
+        SELECT 
+          SUM(CASE WHEN type = 'file' THEN filesize ELSE 0 END) as used,
+          COUNT(CASE WHEN type = 'file' THEN 1 END) as fileCount
+        FROM shares
+        WHERE (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+        AND (max_views IS NULL OR views < max_views)
+      `);
+
+      // 计算存储空间使用百分比（假设总空间为 10GB）
+      const totalSpace = 10 * 1024 * 1024 * 1024; // 10GB in bytes
+      const usedSpace = storage.used || 0;
+      const usagePercent = ((usedSpace / totalSpace) * 100).toFixed(2);
+
+      return {
+        total: shares.total || 0,
+        active: shares.active || 0,
+        text: typeStats.text || 0,
+        file: typeStats.file || 0,
+        storage: {
+          used: usedSpace,
+          total: totalSpace,
+          percent: usagePercent
         }
-      );
-    });
+      };
+    } catch (error) {
+      logger.error('获取统计信息失败:', error);
+      throw error;
+    }
+  }
+
+  async update(share) {
+    try {
+      const db = getDb();
+      await db.run(`
+        UPDATE shares SET
+          content = ?,
+          filename = ?,
+          filesize = ?,
+          mimetype = ?,
+          password = ?,
+          max_views = ?,
+          expires_at = ?
+        WHERE id = ?
+      `, [
+        share.content,
+        share.filename,
+        share.filesize,
+        share.mimetype,
+        share.password,
+        share.maxViews,
+        share.expiresAt,
+        share.id
+      ]);
+      return share;
+    } catch (error) {
+      logger.error('更新分享失败:', error);
+      throw error;
+    }
   }
 
   async findAll(options = {}) {
-    const { type, limit = 100, offset = 0 } = options;
-    
-    return new Promise((resolve, reject) => {
-      let query = `SELECT * FROM shares`;
-      const params = [];
-
-      if (type) {
-        query += ` WHERE type = ?`;
-        params.push(type);
-      }
-
-      query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
-      params.push(limit, offset);
-
-      this.db.all(query, params, (err, rows) => {
-        if (err) {
-          logger.error('查询分享列表失败:', err);
-          reject(new AppError('查询分享列表失败', 500));
-        } else {
-          const shares = rows.map(row => new Share({
-            id: row.id,
-            type: row.type,
-            content: row.content,
-            filename: row.filename,
-            password: row.password,
-            maxViews: row.max_views,
-            views: row.views,
-            createdAt: row.created_at,
-            expiresAt: row.expires_at,
-            fileSize: row.file_size,
-            mimeType: row.mime_type
-          }));
-          resolve(shares);
-        }
-      });
-    });
+    try {
+      const db = getDb();
+      const shares = await db.all(`
+        SELECT * FROM shares 
+        ORDER BY created_at DESC
+      `);
+      
+      return shares.map(share => ({
+        id: share.id,
+        type: share.type,
+        content: share.content,
+        filename: share.filename,
+        filesize: share.filesize,
+        mimetype: share.mimetype,
+        password: share.password,
+        maxViews: share.max_views,
+        views: share.views,
+        createdAt: share.created_at,
+        expiresAt: share.expires_at,
+        url: share.url
+      }));
+    } catch (error) {
+      logger.error('获取分享列表失败:', error);
+      throw error;
+    }
   }
 }
 

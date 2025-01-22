@@ -6,11 +6,15 @@ import { logger } from '../utils/logger.js';
 export const shareService = {
   async getStats() {
     const stats = await dbUtils.getShareStats();
+    const maxStorage = process.env.MAX_STORAGE_SIZE || 5368709120; // 5GB
+    const usagePercent = ((stats.storage / maxStorage) * 100).toFixed(1);
+    
     return {
-      total: stats.total,
-      active: stats.active,
-      storage: stats.storage,
-      maxStorage: process.env.MAX_STORAGE_SIZE || 5368709120 // 5GB
+      totalShares: stats.total,
+      activeShares: stats.active,
+      usedStorage: stats.storage,
+      totalStorage: maxStorage,
+      usagePercent: parseFloat(usagePercent)
     };
   },
 

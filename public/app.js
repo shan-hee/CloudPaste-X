@@ -1795,7 +1795,7 @@ function initFileSubmit() {
 // 获取分享统计数据
 async function fetchShareStats() {
     try {
-        // 获取存储列表数据
+        // 获取统计数据
         const response = await fetch('/api/share/stats');
         if (!response.ok) {
             throw new Error('获取统计数据失败');
@@ -1840,6 +1840,7 @@ async function fetchShareStats() {
         }
     } catch (error) {
         console.error('获取统计数据失败:', error);
+        showToast('获取统计数据失败', 3000);
     }
 }
 
@@ -1851,7 +1852,7 @@ async function fetchStorageList() {
         // 添加loading类来触发加载动画
         shareItems.classList.add('loading');
 
-        const response = await fetch('/api/file');
+        const response = await fetch('/api/share');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -1860,7 +1861,7 @@ async function fetchStorageList() {
         
         if (data.success) {
             shareItems.innerHTML = ''; // 清空现有内容
-            displayStorageList(data.data);
+            displayStorageList(data.data.shares);
         } else {
             throw new Error(data.message || '获取存储列表失败');
         }
@@ -1882,7 +1883,7 @@ async function fetchStorageList() {
 }
 
 // 显示存储列表
-function displayStorageList(data, newItem = null) {
+function displayStorageList(shares, newItem = null) {
     const shareItems = document.getElementById('shareItems');
     
     // 如果是新项插入，直接添加到列表中
@@ -1918,28 +1919,21 @@ function displayStorageList(data, newItem = null) {
         return;
     }
 
-    // 合并KV和R2的数据为统一的分享列表
-    const allShares = [
-        // 添加文本分享
-        ...(data.kv || []).map(item => ({
-            id: item.id,
-            type: 'text',
-            content: item.content,
-            expiration: item.expiration,
-            createdAt: item.createdAt,
-            filename: item.filename
-        })),
-        // 添加文件分享
-        ...(data.r2 || []).map(item => ({
-            id: item.id,
-            type: 'file',
-            size: item.filesize,
-            expiration: item.expiration,
-            filename: item.filename,
-            originalname: item.originalname,
-            createdAt: item.createdAt
-        }))
-    ];
+    // 显示完整列表
+    const storageResults = document.createElement('div');
+    storageResults.className = 'storage-results';
+
+    // 处理分享列表
+    const allShares = shares.map(item => ({
+        id: item.id,
+        type: item.isFile ? 'file' : 'text',
+        content: item.content,
+        expiration: item.expiresAt,
+        filename: item.filename,
+        originalname: item.originalname,
+        createdAt: item.createdAt,
+        size: item.filesize || (item.content ? item.content.length : 0)
+    }));
 
     // 按创建时间排序，最新的在前面
     allShares.sort((a, b) => {
@@ -1948,8 +1942,13 @@ function displayStorageList(data, newItem = null) {
         return timeB - timeA;
     });
 
-    // 生成HTML并添加到容器
-    shareItems.innerHTML = allShares.map(item => createShareItem(item)).join('');
+    const sharesList = document.createElement('div');
+    sharesList.className = 'shares-list';
+    sharesList.innerHTML = allShares.map(item => createShareItem(item)).join('');
+
+    storageResults.appendChild(sharesList);
+    shareItems.innerHTML = ''; // 清空现有内容
+    shareItems.appendChild(storageResults);
 
     // 触发列表项的动画
     const items = shareItems.children;

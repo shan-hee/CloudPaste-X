@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudPaste - 文件预览</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/file-preview.css">
+    <script src="/file-preview.js" defer></script>
+</head>
+<body>
+    <header class="header">
+        <div class="theme-toggle" id="themeToggle">
+            <i class="fas fa-sun"></i>
+        </div>
+    </header>
+    
+    <div class="content-container">
+        <!-- 加载状态 -->
+        <div id="loadingState" class="loading-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>正在加载...</span>
+        </div>
+
+        <div id="contentCard" class="content-card" style="display: none;">
+            <div class="text-title-container">
+                <input type="text" class="text-title" id="filename" readonly value="">
+            </div>
+            
+            <div class="card-content">
+                <!-- 文件显示界面 -->
+                <div class="file-display" id="fileDisplay">
+                    <div class="file-icon-container">
+                        <i class="fas fa-file fa-4x"></i>
+                        <span class="file-name" id="fileName"></span>
+                        <span class="file-size" id="fileSize"></span>
+                    </div>
+                    <div class="file-actions">
+                        <button class="action-btn" id="downloadFileBtn">
+                            <i class="fas fa-download"></i>
+                            下载文件
+                        </button>
+                        <button class="action-btn secondary-btn qr-btn" data-url="" title="显示二维码">
+                            <i class="fas fa-qrcode"></i>
+                            显示二维码
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-group">
+                <div class="left-info">
+                    <span class="info-item">
+                        <i class="far fa-clock"></i>
+                        创建时间: <span id="createTime"></span>
+                    </span>
+                    <span class="info-item">
+                        <i class="far fa-eye" style="color: #4e95ff;"></i>
+                        可访问次数: <input type="number" id="viewCount" value="0" min="0" readonly>
+                    </span>
+                </div>
+                <div class="right-info">
+                    <span class="info-item">
+                        <i class="fas fa-hourglass-half" style="color: #4e95ff;"></i>
+                        过期时间: 
+                        <input type="datetime-local" id="expireTime" readonly>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast提示元素 -->
+        <div class="toast" id="toast">
+            <span>内容已复制到剪贴板</span>
+        </div>
+    </div>
+</body>
+</html> 

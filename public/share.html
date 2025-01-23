@@ -6,8 +6,8 @@
     <title>CloudPaste - 分享内容</title>
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="share.css">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/share.css">
     <!-- 添加KaTeX CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <!-- 添加marked库 -->
@@ -108,8 +108,8 @@
         
     </script>
     <!-- 最后加载其他脚本 -->
-    <script src="app.js" defer></script>
-    <script src="share.js" defer></script>
+    <script src="/app.js" defer></script>
+    <script src="/share.js" defer></script>
 </head>
 <body>
     <header class="header">
@@ -119,7 +119,13 @@
     </header>
     
     <div class="content-container">
-        <div class="content-card">
+        <!-- 加载状态 -->
+        <div id="loadingState" class="loading-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>正在加载...</span>
+        </div>
+
+        <div id="contentCard" class="content-card" style="display: none;">
             <div class="text-title-container">
                 <input type="text" class="text-title" id="filename" readonly value="未命名文本">
             </div>

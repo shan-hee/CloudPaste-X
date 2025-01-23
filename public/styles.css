@@ -298,7 +298,7 @@ body {
 .split-view {
     display: none;
     height: 100%;
-    gap: 20px;
+    /* gap: 20px; */
 }
 
 .split-view.active {
@@ -1967,21 +1967,31 @@ body {
     color: var(--primary-color);
 }
 
-.refresh-btn i {
-    font-size: 14px;
+.refresh-btn.spinning i {
+    animation: spinOnce 0.6s linear forwards;
 }
 
 .refresh-btn.loading i {
     animation: spin 1s linear infinite;
 }
 
+.refresh-btn i {
+    font-size: 14px;
+}
+
+.refresh-btn.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+@keyframes spinOnce {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 @keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* 上传按钮组样式 */
@@ -2232,21 +2242,31 @@ input:disabled + .slider {
     color: var(--primary-color);
 }
 
-.refresh-btn i {
-    font-size: 14px;
+.refresh-btn.spinning i {
+    animation: spinOnce 0.6s linear forwards;
 }
 
 .refresh-btn.loading i {
     animation: spin 1s linear infinite;
 }
 
+.refresh-btn i {
+    font-size: 14px;
+}
+
+.refresh-btn.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+@keyframes spinOnce {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 @keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* 分享结果样式 */
@@ -3223,5 +3243,43 @@ input:disabled + .slider {
 
 .filter-btn[data-type="file"]:hover {
     color: var(--success-color);
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    text-align: center;
+    color: var(--text-secondary-color);
+    background: var(--background-color);
+    border-radius: 8px;
+    margin: 16px 0;
+}
+
+.empty-state i {
+    font-size: 24px;
+    margin-bottom: 8px;
+    color: var(--text-secondary-color);
+    opacity: 0.5;
+}
+
+.empty-state .empty-text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary-color);
+}
+
+/* 暗色主题样式 */
+[data-theme="dark"] .empty-state {
+    background: var(--container-bg);
+}
+
+/* 自动主题样式 */
+@media (prefers-color-scheme: dark) {
+    [data-theme="auto"] .empty-state {
+        background: var(--container-bg);
+    }
 }
 

@@ -18,13 +18,14 @@ class ShareRepository {
       const db = getDb();
       const result = await db.run(`
         INSERT INTO shares (
-          id, type, content, filename, filesize, mimetype,
+          id, type, content, s3_key, filename, filesize, mimetype,
           password, max_views, expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         share.id,
         share.type,
         share.content,
+        share.s3_key,
         share.filename,
         share.filesize,
         share.mimetype,
@@ -48,6 +49,7 @@ class ShareRepository {
           id: share.id,
           type: share.type,
           content: share.content,
+          s3_key: share.s3_key,
           filename: share.filename,
           filesize: share.filesize,
           mimetype: share.mimetype,
@@ -122,21 +124,55 @@ class ShareRepository {
           SUM(CASE WHEN type = 'text' THEN 1 ELSE 0 END) as text,
           SUM(CASE WHEN type = 'file' THEN 1 ELSE 0 END) as file
         FROM shares
+        WHERE (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+        AND (max_views IS NULL OR views < max_views)
       `);
 
       // 获取存储空间使用情况
       const storage = await db.get(`
         SELECT 
-          SUM(CASE WHEN type = 'file' THEN filesize ELSE 0 END) as used,
-          COUNT(CASE WHEN type = 'file' THEN 1 END) as fileCount
+          -- 文件存储空间
+          COALESCE(SUM(CASE 
+            WHEN type = 'file' 
+            AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+            AND (max_views IS NULL OR views < max_views)
+            THEN filesize 
+            ELSE 0 
+          END), 0) as file_storage,
+          
+          -- 文本存储空间
+          COALESCE(SUM(CASE 
+            WHEN type = 'text' 
+            AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+            AND (max_views IS NULL OR views < max_views)
+            THEN COALESCE(filesize, length(content), 0)
+            ELSE 0 
+          END), 0) as text_storage,
+          
+          -- 有效文件数量
+          COUNT(CASE 
+            WHEN type = 'file' 
+            AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+            AND (max_views IS NULL OR views < max_views)
+            THEN 1 
+          END) as file_count,
+          
+          -- 有效文本数量
+          COUNT(CASE 
+            WHEN type = 'text' 
+            AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+            AND (max_views IS NULL OR views < max_views)
+            THEN 1 
+          END) as text_count
         FROM shares
-        WHERE (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-        AND (max_views IS NULL OR views < max_views)
       `);
 
-      // 计算存储空间使用百分比（假设总空间为 10GB）
-      const totalSpace = 10 * 1024 * 1024 * 1024; // 10GB in bytes
-      const usedSpace = storage.used || 0;
+      // 从环境变量获取总容量（GB），默认为10GB
+      const totalStorageGB = parseInt(process.env.TOTAL_STORAGE_GB) || 10;
+      const totalSpace = totalStorageGB * 1024 * 1024 * 1024; // 转换为字节
+      
+      // 计算总使用空间（文件 + 文本）
+      const usedSpace = (storage.file_storage || 0) + (storage.text_storage || 0);
       const usagePercent = ((usedSpace / totalSpace) * 100).toFixed(2);
 
       return {
@@ -147,7 +183,17 @@ class ShareRepository {
         storage: {
           used: usedSpace,
           total: totalSpace,
-          percent: usagePercent
+          percent: parseFloat(usagePercent),
+          details: {
+            file: {
+              size: storage.file_storage || 0,
+              count: storage.file_count || 0
+            },
+            text: {
+              size: storage.text_storage || 0,
+              count: storage.text_count || 0
+            }
+          }
         }
       };
     } catch (error) {
@@ -162,6 +208,7 @@ class ShareRepository {
       await db.run(`
         UPDATE shares SET
           content = ?,
+          s3_key = ?,
           filename = ?,
           filesize = ?,
           mimetype = ?,
@@ -171,6 +218,7 @@ class ShareRepository {
         WHERE id = ?
       `, [
         share.content,
+        share.s3_key,
         share.filename,
         share.filesize,
         share.mimetype,
@@ -198,6 +246,7 @@ class ShareRepository {
         id: share.id,
         type: share.type,
         content: share.content,
+        s3_key: share.s3_key,
         filename: share.filename,
         filesize: share.filesize,
         mimetype: share.mimetype,
@@ -210,6 +259,36 @@ class ShareRepository {
       }));
     } catch (error) {
       logger.error('获取分享列表失败:', error);
+      throw error;
+    }
+  }
+
+  async findExpired() {
+    try {
+      const db = getDb();
+      const shares = await db.all(`
+        SELECT * FROM shares 
+        WHERE (expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP)
+        OR (max_views IS NOT NULL AND views >= max_views)
+      `);
+      
+      return shares.map(share => ({
+        id: share.id,
+        type: share.type,
+        content: share.content,
+        s3_key: share.s3_key,
+        filename: share.filename,
+        filesize: share.filesize,
+        mimetype: share.mimetype,
+        password: share.password,
+        maxViews: share.max_views,
+        views: share.views,
+        createdAt: share.created_at,
+        expiresAt: share.expires_at,
+        url: share.url
+      }));
+    } catch (error) {
+      logger.error('查找过期分享失败:', error);
       throw error;
     }
   }

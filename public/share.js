@@ -1,3 +1,11 @@
+// 全局变量
+const shareId = window.location.pathname.split('/')[2];
+let isPreviewMode = true;
+let originalFilename = '';
+let originalViewCount = '';
+let originalExpireTime = '';
+let originalContent = '';
+
 // 显示Toast提示
 function showToast(message = '内容已复制到剪贴板', duration = 2000, type = 'info') {
     const toast = document.getElementById('toast');
@@ -85,7 +93,6 @@ themeToggle.addEventListener('click', () => {
 });
 
 // 获取分享ID
-const shareId = window.location.pathname.split('/')[2];
 const contentArea = document.getElementById('contentArea');
 
 // 获取DOM元素
@@ -102,10 +109,6 @@ const undoBtn = document.getElementById('undoBtn');
 const redoBtn = document.getElementById('redoBtn');
 const previewModeBtn = document.getElementById('previewModeBtn');
 const filename = document.getElementById('filename');
-
-// 预览模式状态
-let isPreviewMode = true;
-let originalFilename = '';
 
 // 确保预览区域存在并返回预览内容元素
 function ensurePreviewContent() {
@@ -136,13 +139,62 @@ function updateMarkdownPreview(markdown) {
             return;
         }
 
+        // 配置marked选项
+        marked.setOptions({
+            highlight: function(code, language) {
+                if (typeof hljs !== 'undefined') {
+                    try {
+                        if (language && hljs.getLanguage(language)) {
+                            return hljs.highlight(code, { language }).value;
+                        }
+                        return hljs.highlightAuto(code).value;
+                    } catch (e) {
+                        console.warn('代码高亮失败:', e);
+                        return code; // 降级处理：返回原始代码
+                    }
+                }
+                return code; // 如果hljs未定义，返回原始代码
+            },
+            breaks: true,
+            gfm: true,
+            headerIds: true,
+            mangle: false,
+            pedantic: false,
+            sanitize: false
+        });
+
+        // 渲染Markdown
         const html = marked.parse(markdown);
         previewContent.innerHTML = html;
 
-        // 对新内容应用代码高亮
-        previewContent.querySelectorAll('pre code').forEach((block) => {
-            hljs.highlightBlock(block);
-        });
+        // 尝试应用代码高亮
+        if (typeof hljs !== 'undefined') {
+            previewContent.querySelectorAll('pre code').forEach((block) => {
+                try {
+                    hljs.highlightBlock(block);
+                } catch (e) {
+                    console.warn('代码块高亮失败:', e);
+                }
+            });
+        }
+
+        // 渲染数学公式
+        if (typeof renderMathInElement !== 'undefined') {
+            try {
+                renderMathInElement(previewContent, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false,
+                    strict: false
+                });
+            } catch (e) {
+                console.warn('数学公式渲染失败:', e);
+            }
+        }
     } catch (error) {
         console.error('Markdown渲染错误:', error);
         const previewContent = ensurePreviewContent();
@@ -235,43 +287,34 @@ editBtn.addEventListener('click', () => {
         exitPreviewMode();
     }
     
-    // 保存原始文件名和内容
+    // 保存所有字段的原始值
     originalFilename = filename.value;
+    originalViewCount = document.getElementById('viewCount').value;
+    originalExpireTime = document.getElementById('expireTime').value;
+    originalContent = shareContent.value;
+    
+    // 检查是否有编辑权限
+    const canEdit = !editBtn.classList.contains('disabled');
+    if (!canEdit) {
+        showToast('您没有编辑权限', 2000, 'warning');
+        return;
+    }
     
     // 启用文件名编辑
     filename.readOnly = false;
+    document.getElementById('viewCount').readOnly = false;
+    document.getElementById('expireTime').readOnly = false;
     
     // 显示编辑界面
+    editBtn.classList.add('editing');
     shareContentdiv.style.display = 'none';
     editMode.style.display = 'block';
+    
+    // 初始化编辑器内容
     editContent.value = shareContent.value;
-    
-    // 添加编辑状态样式
-    editBtn.classList.add('editing');
-    
-    // 初始化同步滚动
-    initSyncScroll();
-    
-    // 启用可访问次数和过期时间输入框
-    const viewCountInput = document.getElementById('viewCount');
-    const expireTimeInput = document.getElementById('expireTime');
-    viewCountInput.removeAttribute('readonly');
-    expireTimeInput.removeAttribute('readonly');
-    
-    // 确保预览区域已初始化
-    ensurePreviewContent();
-    
-    // 初始化编辑历史
     editorHistory.reset(shareContent.value);
     
-    // 绑定预览更新事件
-    editContent.addEventListener('input', () => {
-        const currentContent = editContent.value;
-        updateMarkdownPreview(currentContent);
-        editorHistory.save(currentContent);
-    });
-    
-    // 立即更新一次预览
+    // 更新预览
     updateMarkdownPreview(editContent.value);
 });
 
@@ -374,14 +417,21 @@ document.querySelectorAll('.toolbar-btn').forEach(btn => {
 
 // 取消编辑
 cancelBtn.addEventListener('click', () => {
-    // 恢复原始文件名
+    // 恢复所有字段到原始状态
     filename.value = originalFilename;
+    document.getElementById('viewCount').value = originalViewCount;
+    document.getElementById('expireTime').value = originalExpireTime;
+    editContent.value = originalContent;
+    shareContent.value = originalContent;
     
     // 禁用文件名编辑
     filename.readOnly = true;
     
     // 切换回预览模式
     togglePreviewMode();
+    
+    // 更新预览内容
+    updateMarkdownPreview(originalContent);
 });
 
 // 编辑历史记录
@@ -410,15 +460,23 @@ function togglePreviewMode() {
     if (!isPreviewMode) {
         isPreviewMode = true;
         previewModeBtn.classList.add('active');
-        shareContent.value=editContent.value  ;
+        shareContent.value = editContent.value;
         shareContentdiv.style.display = 'block';    
         shareContent.style.display = 'block';
         
         // 关闭编辑模式
         shareContent.style.display = 'block';
         editMode.style.display = 'none';
+        
         // 禁用标题编辑
         filename.readOnly = true;
+        
+        // 禁用可访问次数和过期时间输入框
+        const viewCountInput = document.getElementById('viewCount');
+        const expireTimeInput = document.getElementById('expireTime');
+        if (viewCountInput) viewCountInput.setAttribute('readonly', 'readonly');
+        if (expireTimeInput) expireTimeInput.setAttribute('readonly', 'readonly');
+        
         // 移除编辑状态样式
         editBtn.classList.remove('editing');
         if (editMode.classList.contains('fullscreen')) {
@@ -426,8 +484,6 @@ function togglePreviewMode() {
         }
     }
 }
-
-
 
 // 退出预览模式
 function exitPreviewMode() {
@@ -477,10 +533,10 @@ function getFileIcon(mimeType) {
 
 // 加载分享内容
 async function loadShareContent() {
+    const loadingState = document.getElementById('loadingState');
+    const contentCard = document.getElementById('contentCard');
+    
     try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const shareId = urlParams.get('id');
-        
         if (!shareId) {
             showToast('无效的分享链接', 3000);
             return;
@@ -490,7 +546,7 @@ async function loadShareContent() {
         let needPassword = false;
         
         // 先尝试获取内容
-        const response = await fetch(`/s/${shareId}`, {
+        const response = await fetch(`/api/share/${shareId}`, {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
@@ -601,6 +657,10 @@ async function loadShareContent() {
             if (qrButton) {
                 qrButton.dataset.url = window.location.href;
             }
+
+            // 隐藏加载状态，显示内容
+            loadingState.style.display = 'none';
+            contentCard.style.display = 'block';
         } else {
             showToast(data.message || '加载分享内容失败', 3000);
         }
@@ -614,14 +674,12 @@ async function loadShareContent() {
 function formatDate(dateString) {
     if (!dateString) return '永久有效';
     const date = new Date(dateString);
-    return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
 
 // 格式化文件大小
@@ -988,89 +1046,42 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-// 切换到编辑模式
-editBtn.addEventListener('click', () => {
-    if (isPreviewMode) {
-        exitPreviewMode();
-    }
-    
-    // 保存原始文件名和内容
-    originalFilename = filename.value;
-    
-    // 启用文件名编辑
-    filename.readOnly = false;
-    
-    // 显示编辑界面
-    shareContentdiv.style.display = 'none';
-    editMode.style.display = 'block';
-    editContent.value = shareContent.value;
-    
-    // 添加编辑状态样式
-    editBtn.classList.add('editing');
-    
-    // 初始化同步滚动
-    initSyncScroll();
-    
-    // 启用可访问次数和过期时间输入框
-    const viewCountInput = document.getElementById('viewCount');
-    const expireTimeInput = document.getElementById('expireTime');
-    viewCountInput.removeAttribute('readonly');
-    expireTimeInput.removeAttribute('readonly');
-    
-    // 确保预览区域已初始化
-    ensurePreviewContent();
-    
-    // 初始化编辑历史
-    editorHistory.reset(shareContent.value);
-    
-    // 绑定预览更新事件
-    editContent.addEventListener('input', () => {
-        const currentContent = editContent.value;
-        updateMarkdownPreview(currentContent);
-        editorHistory.save(currentContent);
-    });
-    
-    // 立即更新一次预览
-    updateMarkdownPreview(editContent.value);
-});
-    
     // 加载分享内容
     loadShareContent();
 });
 
 // 取消编辑
 cancelBtn.addEventListener('click', () => {
-    if (confirm('确定要取消编辑吗？未保存的更改将会丢失。')) {
-        shareContentdiv.style.display = 'block';
-        shareContent.style.display = 'block';
-        editMode.style.display = 'none';
-        // 移除编辑状态样式
-        editBtn.classList.remove('editing');
-        if (editMode.classList.contains('fullscreen')) {
-            toggleFullscreen();
-        }
-        
-        // 禁用可访问次数和过期时间编辑
-        const viewCountInput = document.getElementById('viewCount');
-        const expireTimeInput = document.getElementById('expireTime');
-        viewCountInput.setAttribute('readonly', 'readonly');
-        expireTimeInput.setAttribute('readonly', 'readonly');
-        
-        // 恢复预览模式
-        isPreviewMode = true;
-        previewModeBtn.classList.add('active');
-    }
+    // 恢复所有字段到原始状态
+    filename.value = originalFilename;
+    document.getElementById('viewCount').value = originalViewCount;
+    document.getElementById('expireTime').value = originalExpireTime;
+    editContent.value = originalContent;
+    shareContent.value = originalContent;
+    
+    // 禁用文件名编辑
+    filename.readOnly = true;
+    
+    // 切换回预览模式
+    togglePreviewMode();
+    
+    // 更新预览内容
+    updateMarkdownPreview(originalContent);
 });
 
 // 保存编辑
 saveBtn.addEventListener('click', async () => {
     try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const shareId = urlParams.get('id');
         const filename = document.getElementById('filename').value;
         const viewCount = parseInt(document.getElementById('viewCount').value) || 0;
         const expireTime = document.getElementById('expireTime').value;
         const currentContent = editContent.value;
+        
+        // 使用全局定义的shareId
+        if (!shareId) {
+            showToast('无效的分享ID，无法保存', 'error');
+            return;
+        }
         
         const requestData = {
             filename: filename,
@@ -1079,7 +1090,7 @@ saveBtn.addEventListener('click', async () => {
             expiresAt: expireTime || null
         };
         
-        const response = await fetch(`/api/text/${shareId}`, {
+        const response = await fetch(`/api/share/${shareId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -1387,7 +1398,7 @@ function initSyncScroll() {
             clearTimeout(timeout);
             timeout = setTimeout(later, wait);
         };
-    }
+    };
     
     // 编辑器滚动处理
     const handleEditorScroll = debounce(() => {
@@ -1669,5 +1680,43 @@ function showPasswordDialog(shareId) {
         passwordInput.focus();
     });
 }
+
+// 添加获取cookie的辅助函数
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+// 编辑器内容变化监听
+editContent.addEventListener('input', () => {
+    // 保存当前内容到历史记录
+    editorHistory.save(editContent.value);
+    // 更新预览
+    updateMarkdownPreview(editContent.value);
+});
+
+// 编辑器按键监听
+editContent.addEventListener('keydown', (e) => {
+    // 如果按下Tab键
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        
+        const start = editContent.selectionStart;
+        const end = editContent.selectionEnd;
+        const value = editContent.value;
+        
+        // 插入制表符（4个空格）
+        editContent.value = value.substring(0, start) + '    ' + value.substring(end);
+        
+        // 设置光标位置
+        editContent.selectionStart = editContent.selectionEnd = start + 4;
+        
+        // 保存历史并更新预览
+        editorHistory.save(editContent.value);
+        updateMarkdownPreview(editContent.value);
+    }
+});
 
 

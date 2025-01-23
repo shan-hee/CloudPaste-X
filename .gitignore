@@ -28,6 +28,12 @@ yarn-error.log*
 !/data/.gitkeep
 /logs/*
 !/logs/.gitkeep
+/uploads/*
+!/uploads/.gitkeep
+/temp/*
+!/temp/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
 
 # IDE和编辑器
 .vscode/
@@ -78,6 +84,28 @@ temp/
 .cache/
 .temp/
 
+# 数据库文件
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# 密钥和证书
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.csr
+
+# 压缩文件
+*.zip
+*.gz
+*.tar
+*.rar
+*.7z
+
 # 其他
 *.log
 *.bak
@@ -93,3 +121,10 @@ temp/
 bower_components/
 jspm_packages/
 web_modules/
+
+# CloudPaste特定
+/s3/*
+!/s3/.gitkeep
+.cloudpaste-config.json
+/sessions/*
+!/sessions/.gitkeep

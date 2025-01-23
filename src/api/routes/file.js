@@ -9,7 +9,7 @@ const { authMiddleware } = require('../middlewares/auth');
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024 // 默认5MB
+    fileSize: (parseInt(process.env.MAX_FILE_SIZE) || 5) * 1024 * 1024 * 1024 // 默认5GB
   }
 });
 

@@ -31,10 +31,21 @@ const validateFileShare = (req, res, next) => {
   }
 
   const allowedTypes = process.env.ALLOWED_FILE_TYPES?.split(',') || [];
-  if (allowedTypes.length > 0 && !allowedTypes.some(type => {
-    const pattern = new RegExp(type.replace('*', '.*'));
-    return pattern.test(file.mimetype);
-  })) {
+  
+  // 检查文件类型
+  const isAllowed = allowedTypes.some(type => {
+    const pattern = new RegExp(type.replace('*', '.*').replace(/\./g, '\\.'));
+    return pattern.test(file.mimetype) || (
+      // 对于压缩文件，同时检查文件扩展名
+      (file.originalname && (
+        file.originalname.toLowerCase().endsWith('.zip') ||
+        file.originalname.toLowerCase().endsWith('.rar') ||
+        file.originalname.toLowerCase().endsWith('.7z')
+      ))
+    );
+  });
+
+  if (!isAllowed) {
     return next(new AppError('不支持的文件类型', 400));
   }
 

@@ -50,6 +50,24 @@ app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// 将环境变量传递给前端
+app.use((req, res, next) => {
+    // 注入环境变量到前端页面
+    const originalSend = res.send;
+    res.send = function (body) {
+        if (typeof body === 'string' && body.includes('</head>')) {
+            const envScript = `<script>
+                window.ENV = {
+                    MAX_FILE_SIZE: ${process.env.MAX_FILE_SIZE || 0.1} // 默认0.1GB
+                };
+            </script>`;
+            body = body.replace('</head>', envScript + '</head>');
+        }
+        return originalSend.call(this, body);
+    };
+    next();
+});
+
 // 初始化服务
 const initializeApp = async () => {
   try {

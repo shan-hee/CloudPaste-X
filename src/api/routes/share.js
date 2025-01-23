@@ -12,7 +12,7 @@ const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024 // 默认5MB
+    fileSize: (parseInt(process.env.MAX_FILE_SIZE) || 5) * 1024 * 1024 * 1024 // 默认5GB
   }
 });
 
@@ -89,8 +89,8 @@ router.get('/:id', limiter.access, validateShareAccess, async (req, res, next) =
   }
 });
 
-// 更新分享（需要认证）
-router.put('/:id', authMiddleware, limiter.create, validateShareAccess, async (req, res, next) => {
+// 更新分享（公开访问）
+router.put('/:id', limiter.create, validateShareAccess, async (req, res, next) => {
   try {
     const share = await shareService.updateShare(req.params.id, req.body);
     res.json({

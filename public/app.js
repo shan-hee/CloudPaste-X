@@ -74,7 +74,7 @@ function initTextSubmit() {
                         content: textContent,
                         filename: filename,
                         password: password || undefined,
-                        duration: duration || undefined,
+                        duration: duration || 'never',  // 确保有默认值
                         maxViews: maxViews || undefined
                     })
                 });
@@ -101,6 +101,13 @@ function initTextSubmit() {
                         charCountSpan.innerHTML = `<i class="fas fa-text-width"></i>${charCount} 字符`;
                     }
 
+                    // 更新过期时间显示
+                    const expiresAtSpan = shareResult.querySelector('.time');
+                    if (expiresAtSpan) {
+                        const expiresAt = result.data.expiresAt ? new Date(result.data.expiresAt).toLocaleString() : '永不过期';
+                        expiresAtSpan.innerHTML = `<i class="fas fa-clock"></i>${expiresAt}`;
+                    }
+
                     // 更新分享列表和统计数据
                     await Promise.all([
                         fetchStorageList(),
@@ -112,7 +119,7 @@ function initTextSubmit() {
                     document.getElementById('textPassword').value = '';
                     document.getElementById('textCustomUrl').value = '';
                     document.getElementById('textMaxViews').value = '';
-                    document.getElementById('textDuration').value = 'never';
+                    document.getElementById('textDuration').value = '1d';  // 改为默认1天
                 } else {
                     shareResult.style.display = 'block';
                     shareResult.classList.add('error');
@@ -595,14 +602,26 @@ function initFileUpload() {
     });
 
     function addFilesToList(files) {
+        // 从环境变量获取文件大小限制，默认为 5GB
+        const MAX_FILE_SIZE = (window.ENV && window.ENV.MAX_FILE_SIZE) ? 
+            parseFloat(window.ENV.MAX_FILE_SIZE) * 1024 * 1024 * 1024 : 
+            5 * 1024 * 1024 * 1024; // 默认 5GB
+        
         files.forEach(file => {
+            // 检查文件大小
+            if (file.size > MAX_FILE_SIZE) {
+                const maxSizeGB = MAX_FILE_SIZE / (1024 * 1024 * 1024);
+                showToast(`文件 "${file.name}" 超出大小限制（${maxSizeGB}GB）`, 'error');
+                return;
+            }
+            
             // 检查是否已经存在同名文件
             if (!selectedFiles.some(f => f.name === file.name)) {
                 selectedFiles.push(file);
                 const filePreview = createFilePreview(file);
                 fileList.appendChild(filePreview);
             } else {
-                console.log('文件已存在:', file.name)
+                showToast(`文件 "${file.name}" 已存在`, 'warning');
             }
         });
         updateUploadAreaVisibility();
@@ -696,6 +715,12 @@ function initAdminPanel() {
         sidebar.classList.add('active');
         sidebarOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
+        
+        // 登录成功后刷新分享列表和统计数据
+        await Promise.all([
+            fetchStorageList(),
+            fetchShareStats()
+]);
         
         // 开关状态
         initSwitchStates();
@@ -1230,7 +1255,7 @@ function initShareFilters() {
 function createShareItem(share) {
     const isFile = share.type === 'file';
     const icon = isFile ? getFileIconByName(share.originalname || share.filename || share.id) : 'fa-file-alt';
-    const expirationTime = share.expiration ? new Date(share.expiration).toLocaleString() : '永不过期';
+    const expirationTime = share.expiresAt ? new Date(share.expiresAt).toLocaleString() : '永不过期';
     const createdTime = share.createdAt ? new Date(share.createdAt).toLocaleString() : '未知时间';
     const displayId = (share.id || '').split('-')[0];
 
@@ -1245,7 +1270,7 @@ function createShareItem(share) {
                 <button class="share-item-btn copy" title="复制链接">
                     <i class="fas fa-link"></i>
                 </button>
-                <button class="share-item-btn delete" title="删除" onclick="deleteStorageItem('${share.id}', '${share.type}')">
+                <button class="share-item-btn delete" title="删除" data-id="${share.id}" data-type="${share.type}">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -1453,36 +1478,23 @@ function initFileSubmit() {
                         zip.file(file.name, file);
                     }
 
-                    // 生成 zip 文件
+                    // 生成zip文件
                     const zipBlob = await zip.generateAsync({
                         type: 'blob',
+                        mimeType: 'application/zip',
                         compression: 'DEFLATE',
                         compressionOptions: {
-                            level: 9
+                            level: 6
                         }
-                    }, (metadata) => {
-                        // 检查是否已取消
-                        if (isCancelled) {
-                            throw new Error('cancelled');
-                        }
-                        // 更新压缩进度
-                        const progress = metadata.percent.toFixed(1);
-                        progressBar.style.width = `${progress}%`;
-                        progressPercent.textContent = `${progress}%`;
-                        progressText.innerHTML = `
-                            <i class="fas fa-arrows-alt-v"></i>
-                            正在压缩... 
-                            <span class="upload-count">${selectedFiles.length}个文件</span>
-                        `;
                     });
 
-                    // 创建文件名（使用当前时间戳）
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    originalFilenames = selectedFiles.map(f => f.name).join(', ');
-                    uploadFile = new File([zipBlob], `cloudpaste_${timestamp}.zip`, { 
-                        type: 'application/zip',
-                        lastModified: Date.now()
-                    });
+                    // 创建带有正确MIME类型的File对象，使用第一个文件的名字作为基础
+                    const baseFileName = selectedFiles[0].name;
+                    const zipFileName = selectedFiles.length === 1 
+                        ? baseFileName 
+                        : baseFileName.replace(/\.[^/.]+$/, '') + '.zip';  // 移除原扩展名，添加.zip
+                    uploadFile = new File([zipBlob], zipFileName, { type: 'application/zip' });
+                    originalFilenames = selectedFiles.map(f => f.name).join(',');
                 }
 
                 // 检查是否已取消
@@ -1557,18 +1569,31 @@ function initFileSubmit() {
                                 json: () => Promise.resolve(JSON.parse(xhr.responseText))
                             });
                         } else {
-                            // 检查是否是网络连接丢失错误
-                            const response = JSON.parse(xhr.responseText);
-                            if (response && response.error && response.error.includes('Network connection lost')) {
-                                resolve({ ok: false, cancelled: true });
-                                return;
+                            try {
+                                // 尝试解析错误响应
+                                const response = JSON.parse(xhr.responseText);
+                                // 处理特定的错误类型
+                                if (response.message && response.message.includes('File too large')) {
+                                    const maxSizeGB = (window.ENV && window.ENV.MAX_FILE_SIZE) || 5;
+                                    showToast(`文件大小超出服务器限制（${maxSizeGB}GB）`, 'error');
+                                    reject(new Error('文件大小超出限制'));
+                                    return;
+                                }
+                                // 检查是否是网络连接丢失错误
+                                if (response && response.message && response.message.includes('Network connection lost')) {
+                                    resolve({ ok: false, cancelled: true });
+                                    return;
+                                }
+                                // 如果是取消上传，不抛出错误
+                                if (currentXhr === null) {
+                                    resolve({ ok: false, cancelled: true });
+                                    return;
+                                }
+                                reject(new Error(response.message || `上传失败：${xhr.status}`));
+                            } catch (e) {
+                                // 如果无法解析JSON，返回HTTP状态错误
+                                reject(new Error(`上传失败：${xhr.status}`));
                             }
-                            // 如果是取消上传，不抛出错误
-                            if (currentXhr === null) {
-                                resolve({ ok: false, cancelled: true });
-                                return;
-                            }
-                            reject(new Error(`HTTP Error: ${xhr.status}`));
                         }
                     });
 
@@ -1897,7 +1922,8 @@ function displayStorageList(data) {
     if (!data || !data.length) {
         shareItems.innerHTML = `
             <div class="empty-state">
-                <p>暂无分享内容</p>
+                <i class="fas fa-inbox"></i>
+                <p class="empty-text">暂无分享内容</p>
             </div>
         `;
         return;
@@ -1915,6 +1941,17 @@ function displayStorageList(data) {
     }).join('');
 
     shareItems.innerHTML = html;
+
+    // 如果过滤后没有内容显示，显示空状态
+    const visibleItems = shareItems.querySelectorAll('.share-item:not(.hidden)');
+    if (visibleItems.length === 0) {
+        shareItems.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p class="empty-text">暂无分享内容</p>
+            </div>
+        `;
+    }
 
     // 添加事件监听器
     addStorageItemEventListeners();
@@ -1942,30 +1979,53 @@ function addStorageItemEventListeners(container = document) {
             }
         });
     });
+
+    // 删除按钮事件
+    container.querySelectorAll('.share-item-btn.delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const id = btn.getAttribute('data-id');
+            const type = btn.getAttribute('data-type');
+            await deleteStorageItem(id, type);
+        });
+    });
 }
 
 // 在刷新列表时调用
-document.getElementById('refreshList').addEventListener('click', async (e) => {
-    const refreshBtn = e.currentTarget;
-    refreshBtn.classList.add('loading');
-    refreshBtn.disabled = true;
-    
-    try {
-        await fetchStorageList();
-        await fetchShareStats();
-    } finally {
-        refreshBtn.classList.remove('loading');
-        refreshBtn.disabled = false;
-    }
-});
+const refreshListBtn = document.getElementById('refreshList');
+if (refreshListBtn) {
+    refreshListBtn.addEventListener('click', async (e) => {
+        const refreshBtn = e.currentTarget;
+        refreshBtn.classList.add('loading');
+        refreshBtn.disabled = true;
+        
+        try {
+            await fetchStorageList();
+            await fetchShareStats();
+        } finally {
+            refreshBtn.classList.remove('loading');
+            refreshBtn.disabled = false;
+        }
+    });
+}
 
 // 初始化时调用
 document.addEventListener('DOMContentLoaded', () => {
-    // 只有在已登录状态下才获取列表和统计数据
-    const sessionId = localStorage.getItem('sessionId');
-    if (sessionId) {
-        fetchStorageList();
-        fetchShareStats();
+    const shareItems = document.getElementById('shareItems');
+    // 只在shareItems存在时显示初始空状态
+    if (shareItems) {
+        shareItems.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p class="empty-text">暂无分享内容</p>
+            </div>
+        `;
+
+        // 只有在已登录状态下才获取列表和统计数据
+        const sessionId = localStorage.getItem('sessionId');
+        if (sessionId) {
+            fetchStorageList();
+            fetchShareStats();
+        }
     }
     initShareFilters();
 });
@@ -2086,11 +2146,19 @@ async function deleteStorageItem(id, type) {
             item.classList.add('deleting');
         }
 
-        // 发送删除请求，同时删除 KV 和 R2 中的数据
+        // 获取 sessionId
+        const sessionId = localStorage.getItem('sessionId');
+        if (!sessionId) {
+            showToast('请先登录', 'error');
+            return;
+        }
+
+        // 发送删除请求
         const response = await fetch(`/api/share/${id}`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
             }
         });
 
@@ -2103,8 +2171,21 @@ async function deleteStorageItem(id, type) {
                 item.style.opacity = '0';
                 setTimeout(() => {
                     item.remove();
+                    // 检查是否还有其他分享项
+                    const remainingItems = document.querySelectorAll('.share-item:not(.deleting)');
+                    if (remainingItems.length === 0) {
+                        // 如果没有剩余项，显示空状态
+                        const shareItems = document.getElementById('shareItems');
+                        shareItems.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <p class="empty-text">暂无分享内容</p>
+                            </div>
+                        `;
+                    }
                 }, 300);
             }
+
             showToast('删除成功', 'success');
             // 只更新统计数据
             await fetchShareStats();
@@ -2128,6 +2209,7 @@ async function deleteStorageItem(id, type) {
         }
         console.error('删除失败:', err);
         // 恢复界面显示
+        const item = document.querySelector(`.share-item[data-id="${id}"]`);
         if (item) {
             item.classList.remove('deleting');
         }
@@ -2778,4 +2860,18 @@ document.addEventListener('DOMContentLoaded', () => {
     initPasswordProtection();
 });
 
+// ... existing code ... 
+
+// ... existing code ...
+document.getElementById('refreshList').addEventListener('click', function() {
+    // 添加旋转类
+    this.classList.add('spinning');
+    // 动画结束后移除类
+    setTimeout(() => {
+        this.classList.remove('spinning');
+    }, 600);
+    
+    // 原有的刷新逻辑
+    fetchStorageList();
+});
 // ... existing code ... 

@@ -18,12 +18,6 @@ const setupDatabase = async () => {
       logger.info(`创建数据库目录: ${dbDir}`);
     }
 
-    // 如果数据库文件存在，先删除它
-    if (fs.existsSync(dbPath)) {
-      fs.unlinkSync(dbPath);
-      logger.info('删除旧数据库文件');
-    }
-
     // 打开数据库连接
     db = await open({
       filename: dbPath,
@@ -32,11 +26,11 @@ const setupDatabase = async () => {
     
     logger.info('数据库连接成功');
 
-    // 初始化表
+    // 初始化表（如果不存在）
     await initializeTables();
     logger.info('数据库表初始化完成');
 
-    // 初始化默认设置和管理员账号
+    // 初始化默认设置和管理员账号（如果不存在）
     await initializeDefaultData();
     logger.info('默认数据初始化完成');
 
@@ -78,6 +72,7 @@ const initializeTables = async () => {
         id TEXT PRIMARY KEY,
         type TEXT NOT NULL CHECK(type IN ('text', 'file')),
         content TEXT,
+        s3_key TEXT,
         filename TEXT,
         filesize INTEGER,
         mimetype TEXT,

@@ -31,7 +31,7 @@ CloudPaste-X 是一个现代化的在线文本分享平台，支持 Markdown 编
 
 1. 克隆仓库：
 ```bash
-git clone https://github.com/yourusername/CloudPaste-X.git
+git clone https://github.com/shan-hee/CloudPaste-X
 cd CloudPaste-X
 ```
 
@@ -44,7 +44,7 @@ cp .env.example .env
 3. 启动服务：
 ```bash
 cd docker
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 手动部署

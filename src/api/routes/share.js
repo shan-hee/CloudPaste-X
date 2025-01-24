@@ -76,7 +76,7 @@ router.post('/file', limiter.create, upload.single('file'), validateFileShare, a
 });
 
 // 获取分享内容（公开访问）
-router.get('/:id', limiter.access, validateShareAccess, async (req, res, next) => {
+router.get('/:id', limiter.access, async (req, res, next) => {
   try {
     const share = await shareService.getShare(req.params.id, req.headers['x-password']);
     res.json({
@@ -84,8 +84,40 @@ router.get('/:id', limiter.access, validateShareAccess, async (req, res, next) =
       data: share
     });
   } catch (error) {
-    logger.error('获取分享失败:', error);
-    next(new AppError('获取分享失败', 404));
+    if (error.statusCode === 401) {
+      res.status(401).json({
+        success: false,
+        message: '需要密码访问',
+        requirePassword: true
+      });
+    } else {
+      logger.error('获取分享失败:', error);
+      next(new AppError('获取分享失败', 404));
+    }
+  }
+});
+
+// 下载文件（公开访问）
+router.get('/:id/download', limiter.access, async (req, res, next) => {
+  try {
+    const downloadUrl = await shareService.getFileDownloadUrl(req.params.id, req.headers['x-password']);
+    res.json({
+      success: true,
+      data: {
+        url: downloadUrl
+      }
+    });
+  } catch (error) {
+    if (error.statusCode === 401) {
+      res.status(401).json({
+        success: false,
+        message: '需要密码访问',
+        requirePassword: true
+      });
+    } else {
+      logger.error('下载文件失败:', error);
+      next(new AppError('下载文件失败', 500));
+    }
   }
 });
 

@@ -1,3 +1,16 @@
+// 格式化日期
+function formatDate(dateString) {
+    if (!dateString) return '未知时间';
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 // 显示Toast提示
 function showToast(message = '内容已复制到剪贴板', duration = 2000, type = 'info') {
     const toast = document.getElementById('toast');
@@ -131,20 +144,6 @@ function getFileIcon(mimeType) {
     return fileIconMap.default;
 }
 
-// 格式化日期
-function formatDate(dateString) {
-    if (!dateString) return '永久有效';
-    const date = new Date(dateString);
-    return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-}
-
 // 格式化文件大小
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -171,7 +170,7 @@ async function loadFileContent() {
         let needPassword = false;
         
         // 先尝试获取内容
-        const response = await fetch(`/api/share/${shareId}`, {
+        const response = await fetch(`/s/${shareId}`, {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
@@ -225,9 +224,9 @@ async function loadFileContent() {
             const fileName = data.data.originalname || data.data.filename;
             // 更新文件信息
             document.getElementById('fileName').textContent = fileName;
-            document.getElementById('fileName').title = fileName;
-            document.getElementById('filename').value = fileName;
-            document.getElementById('fileSize').textContent = formatFileSize(data.data.size);
+            document.getElementById('fileName').title = data.data.filename;
+            document.getElementById('filename').value = data.data.filename;
+            document.getElementById('fileSize').textContent = formatFileSize(data.data.filesize || 0);
             
             // 更新页面标题
             document.title = `CloudPaste - ${fileName}`;
@@ -238,10 +237,37 @@ async function loadFileContent() {
             
             // 设置下载按钮事件
             const downloadBtn = document.getElementById('downloadFileBtn');
-            downloadBtn.onclick = () => window.location.href = `/s/${shareId}/download`;
+            downloadBtn.onclick = async () => {
+                try {
+                    const downloadResponse = await fetch(`/api/share/${shareId}/download`, {
+                        headers: {
+                            'X-Password': password || ''
+                        }
+                    });
+                    
+                    if (downloadResponse.status === 401) {
+                        showToast('需要密码访问', 3000, 'error');
+                        return;
+                    } else if (!downloadResponse.ok) {
+                        showToast('下载失败，请重试', 3000, 'error');
+                        return;
+                    }
+
+                    const data = await downloadResponse.json();
+                    if (data.success && data.data.url) {
+                        // 使用预签名URL下载文件
+                        window.location.href = data.data.url;
+                    } else {
+                        showToast('下载失败，请重试', 3000, 'error');
+                    }
+                } catch (error) {
+                    console.error('下载文件失败:', error);
+                    showToast('下载失败，请重试', 3000, 'error');
+                }
+            };
             
             // 更新信息
-            document.getElementById('createTime').textContent = formatDate(data.data.created);
+            document.getElementById('createTime').textContent = formatDate(data.data.createdAt);
             document.getElementById('viewCount').value = data.data.maxViews || 0;
             
             const expireTimeInput = document.getElementById('expireTime');

@@ -82,6 +82,7 @@ async function migrateSharesTable(db) {
       content TEXT,
       s3_key TEXT,
       filename TEXT,
+      originalname TEXT,
       filesize INTEGER,
       mimetype TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -113,6 +114,7 @@ async function migrateSharesTable(db) {
       'type',
       'content',
       'filename',
+      'originalname',
       'created_at',
       'expires_at',
       'password',
@@ -148,6 +150,10 @@ async function migrateSharesTable(db) {
         filesize = CASE 
           WHEN type = 'text' THEN length(content)
           ELSE NULL
+        END,
+        originalname = CASE
+          WHEN type = 'file' AND originalname IS NULL THEN filename
+          ELSE originalname
         END,
         status = CASE
           WHEN expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP THEN 'expired'

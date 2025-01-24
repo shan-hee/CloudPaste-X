@@ -185,7 +185,7 @@
 }
 
 /* 输入框样式 */
-#viewCount, #expireTime {
+#viewCount, #expireTime, .text-title {
     border: none;
     background: transparent;
     color: inherit;
@@ -204,6 +204,19 @@
     background-repeat: no-repeat;
     background-position: right center;
     padding-right: 24px;
+}
+
+/* 禁用状态样式 */
+#viewCount:disabled,
+#expireTime:disabled,
+.text-title:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background-color: transparent;
+    color: var(--text-color);
+    -webkit-text-fill-color: var(--text-color);
+    border: none;
+    pointer-events: none;
 }
 
 /* 标题样式 */

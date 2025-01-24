@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const shareRepository = require('../repositories/ShareRepository');
 const { AppError } = require('../../utils/errorHandler');
 const { logger } = require('../../utils/logger');
-const { uploadFile, downloadFile, deleteFile } = require('../../infrastructure/storage');
+const { uploadFile, downloadFile, deleteFile, getSignedDownloadUrl } = require('../../infrastructure/storage');
 
 class ShareService {
   async createTextShare(data) {
@@ -68,8 +68,12 @@ class ShareService {
       // 生成唯一ID
       const shareId = uuidv4();
 
+      // 使用自定义文件名或原始文件名
+      const filename = data.customUrl || data.file.originalname;
+      const originalname = data.file.originalname;  // 保存原始文件名
+
       // 上传文件到S3
-      const s3Key = `files/${shareId}/${data.file.originalname}`;
+      const s3Key = `files/${shareId}/${filename}`;
       try {
         await uploadFile(s3Key, data.file.buffer, {
           contentType: data.file.mimetype || 'application/octet-stream'
@@ -85,7 +89,8 @@ class ShareService {
         type: 'file',
         content: null,  // 文件内容存储在S3，这里不存储
         s3_key: s3Key,
-        filename: data.file.originalname,
+        filename: filename,  // 使用自定义文件名或原始文件名
+        originalname: originalname,  // 保存原始文件名
         filesize: data.file.size,
         mimetype: data.file.mimetype || 'application/octet-stream',
         password: data.password || null,
@@ -316,6 +321,63 @@ class ShareService {
     } catch (error) {
       logger.error('删除过期分享失败:', error);
       throw new AppError('删除过期分享失败', 500);
+    }
+  }
+
+  async getFileContent(s3Key) {
+    try {
+      const fileContent = await downloadFile(s3Key);
+      return fileContent;
+    } catch (error) {
+      logger.error('获取文件内容失败:', error);
+      throw new AppError('获取文件内容失败', 500);
+    }
+  }
+
+  async getFileDownloadUrl(id, password) {
+    try {
+      const share = await shareRepository.findById(id);
+      
+      if (!share) {
+        throw new AppError('分享不存在', 404);
+      }
+
+      // 检查密码
+      if (share.password && share.password !== password) {
+        throw new AppError('密码错误', 401);
+      }
+
+      // 检查访问次数
+      if (share.maxViews && share.views >= share.maxViews) {
+        throw new AppError('分享已达到最大访问次数', 403);
+      }
+
+      // 检查过期时间
+      if (share.expiresAt && new Date(share.expiresAt) <= new Date()) {
+        throw new AppError('分享已过期', 403);
+      }
+
+      if (share.type !== 'file' || !share.s3_key) {
+        throw new AppError('不是文件类型', 400);
+      }
+
+      // 生成预签名URL
+      const downloadUrl = await getSignedDownloadUrl(
+        share.s3_key,
+        share.originalname || share.filename,
+        3600 // URL有效期1小时
+      );
+
+      // 增加访问次数
+      await shareRepository.incrementViews(id);
+
+      return downloadUrl;
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      logger.error('获取文件下载链接失败:', error);
+      throw new AppError('获取文件下载链接失败', 500);
     }
   }
 }

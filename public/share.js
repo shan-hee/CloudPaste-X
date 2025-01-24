@@ -538,7 +538,13 @@ async function loadShareContent() {
     
     try {
         if (!shareId) {
-            showToast('无效的分享链接', 3000);
+            showToast('无效的分享链接', 3000, 'error');
+            loadingState.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>无效的分享链接</p>
+                </div>
+            `;
             return;
         }
         
@@ -546,17 +552,31 @@ async function loadShareContent() {
         let needPassword = false;
         
         // 先尝试获取内容
-        const response = await fetch(`/api/share/${shareId}`, {
+        const response = await fetch(`/s/${shareId}`, {
             headers: {
                 'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'X-Timestamp': new Date().getTime()
             }
         });
+        
+        if (response.status === 404) {
+            loadingState.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>分享内容不存在或已被删除</p>
+                </div>
+            `;
+            showToast('分享内容不存在或已被删除', 3000, 'error');
+            return;
+        }
         
         let data = await response.json();
         
         // 如果需要密码验证
-        while (response.status === 403 && data.requirePassword) {
+        if ((response.status === 401 || data.requirePassword) && !password) {
             needPassword = true;
             // 显示密码输入对话框
             password = await showPasswordDialog(shareId);
@@ -564,36 +584,23 @@ async function loadShareContent() {
                 return; // 用户取消输入密码
             }
             
-            // 验证密码
-            const verifyResponse = await fetch(`/s/${shareId}/verify`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ password })
-            });
-            
-            const verifyResult = await verifyResponse.json();
-            if (!verifyResult.success) {
-                showToast('密码错误，请重试', 3000, 'error');
-                continue; // 继续显示密码输入框
-            }
-            
-            // 密码验证通过，重新获取内容
+            // 重新获取内容，这次带上密码
             const newResponse = await fetch(`/s/${shareId}`, {
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-Access-Token': password
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'X-Password': password,
+                    'X-Timestamp': new Date().getTime()
                 }
             });
             
             data = await newResponse.json();
-            if (!data.success) {
-                showToast(data.message || '获取内容失败', 'error');
-                continue; // 如果获取失败，继续要求输入密码
+            if (newResponse.status === 401 || !data.success) {
+                showToast('密码错误，请重试', 3000, 'error');
+                return loadShareContent(); // 重新开始整个流程
             }
-            break; // 获取成功，跳出循环
         }
         
         if (data.success) {
@@ -624,7 +631,42 @@ async function loadShareContent() {
                 
                 // 设置下载按钮事件
                 const downloadBtn = document.getElementById('downloadFileBtn');
-                downloadBtn.onclick = () => window.location.href = `/s/${shareId}/download`;
+                downloadBtn.onclick = async () => {
+                    try {
+                        const downloadResponse = await fetch(`/s/${shareId}/download`, {
+                            headers: {
+                                'X-Password': password || ''
+                            }
+                        });
+                        
+                        if (downloadResponse.status === 401) {
+                            showToast('需要密码访问', 3000, 'error');
+                            return;
+                        } else if (downloadResponse.ok) {
+                            // 获取文件名
+                            const disposition = downloadResponse.headers.get('content-disposition');
+                            const filename = disposition ? 
+                                decodeURIComponent(disposition.split('filename=')[1].replace(/"/g, '')) : 
+                                data.data.originalname || data.data.filename;
+                            
+                            // 创建下载链接
+                            const blob = await downloadResponse.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = filename;  // 使用原始文件名
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                        } else {
+                            showToast('下载失败，请重试', 3000, 'error');
+                        }
+                    } catch (error) {
+                        console.error('下载文件失败:', error);
+                        showToast('下载失败，请重试', 3000, 'error');
+                    }
+                };
             } else {
                 // 文本内容显示
                 document.getElementById('fileDisplay').style.display = 'none';
@@ -662,11 +704,23 @@ async function loadShareContent() {
             loadingState.style.display = 'none';
             contentCard.style.display = 'block';
         } else {
-            showToast(data.message || '加载分享内容失败', 3000);
+            showToast(data.message || '加载分享内容失败', 3000, 'error');
+            loadingState.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>${data.message || '加载分享内容失败'}</p>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('加载分享内容失败:', error);
-        showToast('加载分享内容失败', 3000);
+        showToast('加载分享内容失败', 3000, 'error');
+        loadingState.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>加载分享内容失败</p>
+            </div>
+        `;
     }
 }
 

@@ -1258,11 +1258,12 @@ function createShareItem(share) {
     const expirationTime = share.expiresAt ? new Date(share.expiresAt).toLocaleString() : '永不过期';
     const createdTime = share.createdAt ? new Date(share.createdAt).toLocaleString() : '未知时间';
     const displayId = (share.id || '').split('-')[0];
+    const filename = isFile ? (share.originalname || share.filename) : (share.filename || 'CloudPaste-Text');
 
     return `
             <div class="share-item-info">
-                <div class="share-item-line">ID: <span class="share-id" title="点击查看分享" data-id="${share.id}">${displayId}</span></div>
-                <div class="share-item-line">文件名: ${isFile ? (share.originalname || share.filename) : (share.filename || 'CloudPaste-Text')}</div>
+                <div class="share-item-line">ID: <span class="share-id clickable" title="点击查看分享" data-id="${share.id}" data-type="${share.type}">${displayId}</span></div>
+                <div class="share-item-line">文件名: <span class="filename-text" data-id="${share.id}">${filename}</span></div>
                 <div class="share-item-line">创建时间: ${createdTime}</div>
                 <div class="share-item-line">过期时间: ${expirationTime}</div>
             </div>
@@ -1505,12 +1506,12 @@ function initFileSubmit() {
                 // 准备表单数据
                 const formData = new FormData();
                 formData.append('file', uploadFile);
-                formData.append('originalname', originalFilenames);
+                formData.append('originalname', uploadFile.name);  // 添加原始文件名
                 formData.append('password', filePassword.value);
                 formData.append('duration', fileDuration.value);
                 formData.append('customUrl', fileCustomUrl.value);
                 formData.append('maxViews', fileMaxViews.value);
-                formData.append('isUserUpload', 'true');  // 添加用户上传标记
+                formData.append('isUserUpload', 'true');
 
                 // 重置上传速度计算
                 uploadStartTime = Date.now();
@@ -1995,8 +1996,11 @@ const refreshListBtn = document.getElementById('refreshList');
 if (refreshListBtn) {
     refreshListBtn.addEventListener('click', async (e) => {
         const refreshBtn = e.currentTarget;
-        refreshBtn.classList.add('loading');
-        refreshBtn.disabled = true;
+        refreshBtn.classList.add('spinning');
+        // 动画结束后移除类
+        setTimeout(() => {
+            refreshBtn.classList.remove('spinning');
+        }, 600);
         
         try {
             await fetchStorageList();
@@ -2028,6 +2032,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     initShareFilters();
+    initShareItemEvents(); // 初始化分享项点击事件
 });
 
 // Toast 通知功能
@@ -2860,18 +2865,110 @@ document.addEventListener('DOMContentLoaded', () => {
     initPasswordProtection();
 });
 
-// ... existing code ... 
 
-// ... existing code ...
-document.getElementById('refreshList').addEventListener('click', function() {
-    // 添加旋转类
-    this.classList.add('spinning');
-    // 动画结束后移除类
-    setTimeout(() => {
-        this.classList.remove('spinning');
-    }, 600);
-    
-    // 原有的刷新逻辑
-    fetchStorageList();
+// 添加分享ID点击事件处理
+function initShareItemEvents() {
+    const shareItems = document.getElementById('shareItems');
+    if (shareItems) {
+        shareItems.addEventListener('click', (e) => {
+            const shareId = e.target.closest('.share-id');
+            if (shareId) {
+                const id = shareId.dataset.id;
+                const type = shareId.dataset.type;
+                // 跳转到分享页面
+                window.open(`/s/${id}`, '_blank');
+            }
+        });
+    }
+}
+
+// 添加文件名编辑功能
+function initFilenameEdit() {
+    document.addEventListener('click', async (e) => {
+        const filenameText = e.target.closest('.filename-text');
+        if (filenameText) {
+            // 如果已经是输入框，不需要再次转换
+            if (filenameText.querySelector('input')) return;
+
+            const shareId = filenameText.dataset.id;
+            const currentName = filenameText.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentName;
+            input.className = 'filename-edit';
+            input.style.width = '100%';
+            input.style.border = '1px solid var(--border-color)';
+            input.style.borderRadius = '4px';
+            input.style.padding = '2px 4px';
+            input.style.backgroundColor = 'var(--background-color)';
+            input.style.color = 'var(--text-color)';
+
+            // 保存原始内容以便取消时恢复
+            const originalContent = filenameText.innerHTML;
+
+            // 替换文本为输入框
+            filenameText.innerHTML = '';
+            filenameText.appendChild(input);
+            input.focus();
+            input.select();
+
+            // 处理输入框失去焦点或按下回车
+            async function handleSave() {
+                const newName = input.value.trim();
+                if (newName && newName !== currentName) {
+                    try {
+                        const response = await fetch(`/api/share/${shareId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Session-Id': localStorage.getItem('sessionId')
+                            },
+                            body: JSON.stringify({
+                                filename: newName
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            filenameText.innerHTML = newName;
+                            showToast('文件名修改成功', 'success');
+                        } else {
+                            throw new Error(data.message || '修改失败');
+                        }
+                    } catch (error) {
+                        console.error('修改文件名失败:', error);
+                        showToast('修改文件名失败: ' + error.message, 'error');
+                        filenameText.innerHTML = originalContent;
+                    }
+                } else {
+                    // 如果没有修改或为空，恢复原始内容
+                    filenameText.innerHTML = originalContent;
+                }
+            }
+
+            // 处理输入框失去焦点
+            input.addEventListener('blur', handleSave);
+
+            // 处理回车键
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur();
+                }
+            });
+
+            // 处理ESC键
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    filenameText.innerHTML = originalContent;
+                }
+            });
+        }
+    });
+}
+
+// 在文档加载完成后初始化文件名编辑功能
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing code ...
+    initFilenameEdit();
 });
-// ... existing code ... 

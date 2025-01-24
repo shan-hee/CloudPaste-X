@@ -4,6 +4,7 @@ class Share {
     type,
     content,
     filename,
+    originalname,
     password,
     maxViews = 0,
     views = 0,
@@ -16,6 +17,7 @@ class Share {
     this.type = type;
     this.content = content;
     this.filename = filename;
+    this.originalname = originalname;
     this.password = password;
     this.maxViews = maxViews;
     this.views = views;
@@ -53,6 +55,7 @@ class Share {
       id: this.id,
       type: this.type,
       filename: this.filename,
+      originalname: this.originalname,
       views: this.views,
       maxViews: this.maxViews,
       createdAt: this.createdAt,

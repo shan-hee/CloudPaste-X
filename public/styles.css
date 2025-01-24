@@ -3283,3 +3283,38 @@ input:disabled + .slider {
     }
 }
 
+/* 可点击的分享ID样式 */
+.share-id.clickable {
+    color: var(--primary-color);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.share-id.clickable:hover {
+    color: var(--primary-color-dark);
+    text-decoration: underline;
+}
+
+.filename-text {
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.filename-text:hover {
+    background-color: var(--hover-color);
+}
+
+.filename-edit {
+    font-size: inherit;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.filename-edit:focus {
+    box-shadow: 0 0 0 2px var(--primary-color-light);
+}
+

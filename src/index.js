@@ -21,7 +21,8 @@ app.use(helmet({
         "'unsafe-inline'",
         "'unsafe-eval'",
         "https://cdn.jsdelivr.net",
-        "https://cdnjs.cloudflare.com"
+        "https://cdnjs.cloudflare.com",
+        "https://html2canvas.hertzen.com"
       ],
       styleSrc: [
         "'self'",

@@ -18,15 +18,16 @@ class ShareRepository {
       const db = getDb();
       const result = await db.run(`
         INSERT INTO shares (
-          id, type, content, s3_key, filename, filesize, mimetype,
+          id, type, content, s3_key, filename, originalname, filesize, mimetype,
           password, max_views, expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         share.id,
         share.type,
         share.content,
         share.s3_key,
         share.filename,
+        share.originalname,
         share.filesize,
         share.mimetype,
         share.password,
@@ -51,6 +52,7 @@ class ShareRepository {
           content: share.content,
           s3_key: share.s3_key,
           filename: share.filename,
+          originalname: share.originalname,
           filesize: share.filesize,
           mimetype: share.mimetype,
           password: share.password,
@@ -210,6 +212,7 @@ class ShareRepository {
           content = ?,
           s3_key = ?,
           filename = ?,
+          originalname = ?,
           filesize = ?,
           mimetype = ?,
           password = ?,
@@ -220,6 +223,7 @@ class ShareRepository {
         share.content,
         share.s3_key,
         share.filename,
+        share.originalname,
         share.filesize,
         share.mimetype,
         share.password,
@@ -248,6 +252,7 @@ class ShareRepository {
         content: share.content,
         s3_key: share.s3_key,
         filename: share.filename,
+        originalname: share.originalname,
         filesize: share.filesize,
         mimetype: share.mimetype,
         password: share.password,
@@ -278,6 +283,7 @@ class ShareRepository {
         content: share.content,
         s3_key: share.s3_key,
         filename: share.filename,
+        originalname: share.originalname,
         filesize: share.filesize,
         mimetype: share.mimetype,
         password: share.password,

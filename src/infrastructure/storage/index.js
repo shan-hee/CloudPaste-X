@@ -123,9 +123,32 @@ const deleteFile = async (key) => {
   }
 };
 
+// 生成预签名下载URL
+const getSignedDownloadUrl = async (key, filename, expiresIn = 3600) => {
+  if (!isStorageAvailable) {
+    throw new Error('存储服务不可用');
+  }
+
+  const params = {
+    Bucket: process.env.S3_BUCKET,
+    Key: key,
+    Expires: expiresIn,
+    ResponseContentDisposition: `attachment; filename="${encodeURIComponent(filename)}"` 
+  };
+
+  try {
+    const url = await s3Client.getSignedUrlPromise('getObject', params);
+    return url;
+  } catch (error) {
+    logger.error('生成预签名URL失败:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   setupStorage,
   uploadFile,
   downloadFile,
-  deleteFile
+  deleteFile,
+  getSignedDownloadUrl
 }; 

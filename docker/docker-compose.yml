@@ -9,9 +9,7 @@ services:
       - ../logs:/app/logs
 
   app:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: ${DOCKER_REGISTRY:-ghcr.io}/your-org/cloudpaste-x:latest
     container_name: cloudpaste-app
     restart: unless-stopped
     ports:

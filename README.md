@@ -70,29 +70,38 @@ npm run migrate
 npm start
 ```
 
-## ⚙️ 环境变量
+## 快速部署
 
-必要的环境变量：
+1. 创建配置文件：
+```bash
+cp .env.example .env
+```
 
-- `PORT`: 服务端口号（默认 3000）
-- `NODE_ENV`: 运行环境（development/production）
-- `DATABASE_PATH`: SQLite 数据库文件路径
-- `S3_ENDPOINT`: S3 兼容存储服务地址
-- `S3_ACCESS_KEY`: 存储服务访问密钥
-- `S3_SECRET_KEY`: 存储服务密钥
-- `S3_BUCKET`: 存储桶名称
-- `S3_REGION`: 存储区域
-- `JWT_SECRET`: JWT 密钥
-- `SESSION_SECRET`: 会话密钥
-- `COOKIE_SECRET`: Cookie 密钥
-- `RATE_LIMIT_WINDOW_MS`: 速率限制时间窗口
-- `RATE_LIMIT_MAX_REQUESTS`: 速率限制最大请求数
-- `MAX_FILE_SIZE`: 最大文件大小（字节）
-- `LOG_LEVEL`: 日志级别
-- `LOG_FILE_PATH`: 日志文件路径
-- `ENABLE_REQUEST_LOGGING`: 是否启用请求日志
-- `ENABLE_RESPONSE_CACHE`: 是否启用响应缓存
-- `CACHE_DURATION`: 缓存时间（秒）
+2. 修改环境变量（可选）：
+```bash
+vim .env
+```
+
+3. 启动服务：
+```bash
+docker compose up -d
+```
+
+## 环境变量说明
+
+主要环境变量：
+- `PORT`: 应用端口号（默认：3000）
+- `MINIO_ROOT_USER`: MinIO访问密钥（默认：minioadmin）
+- `MINIO_ROOT_PASSWORD`: MinIO密钥（默认：minioadmin）
+- `JWT_SECRET`: JWT密钥（必填）
+- `SESSION_SECRET`: Session密钥（必填）
+- `COOKIE_SECRET`: Cookie密钥（必填）
+
+更多配置选项请参考 `.env.example` 文件。
+
+## 开发指南
+
+如需本地开发，请参考 [开发文档](docs/development.md)。
 
 ## 🏗️ 项目结构
 

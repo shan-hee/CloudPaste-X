@@ -23,14 +23,16 @@ app.use(helmet({
         "'unsafe-eval'",
         "https://cdn.jsdelivr.net",
         "https://cdnjs.cloudflare.com",
-        "https://html2canvas.hertzen.com"
+        "https://html2canvas.hertzen.com",
+        "http://192.210.143.132:3000"
       ],
       styleSrc: [
         "'self'",
         "'unsafe-inline'",
         "https://cdn.jsdelivr.net",
         "https://cdnjs.cloudflare.com",
-        "https://fonts.googleapis.com"
+        "https://fonts.googleapis.com",
+        "http://192.210.143.132:3000"
       ],
       fontSrc: [
         "'self'",
@@ -39,15 +41,21 @@ app.use(helmet({
         "https://fonts.gstatic.com",
         "data:"
       ],
-      imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "blob:", "http://192.210.143.132:3000"],
+      connectSrc: ["'self'", "http://192.210.143.132:3000"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"]
     }
   }
 }));
-app.use(cors());
+
+// CORS配置
+app.use(cors({
+  origin: process.env.BASE_URL || 'http://192.210.143.132:3000',
+  credentials: true
+}));
+
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -61,7 +69,8 @@ app.use((req, res, next) => {
         if (typeof body === 'string' && body.includes('</head>')) {
             const envScript = `<script>
                 window.ENV = {
-                    MAX_FILE_SIZE: ${process.env.MAX_FILE_SIZE || 0.1} // 默认0.1GB
+                    MAX_FILE_SIZE: ${process.env.MAX_FILE_SIZE || 0.1}, // 默认0.1GB
+                    BASE_URL: '${process.env.BASE_URL || 'http://192.210.143.132:3000'}'
                 };
             </script>`;
             body = body.replace('</head>', envScript + '</head>');

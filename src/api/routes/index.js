@@ -86,12 +86,12 @@ export const setupRoutes = (app) => {
         if (share && share.type === 'file') {
           // 设置 CSP 头
           res.setHeader('Content-Security-Policy', `
-            default-src 'self';
-            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com;
-            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
-            img-src 'self' data: https:;
+            default-src 'self' http://192.210.143.132:3000;
+            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com http://192.210.143.132:3000;
+            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com http://192.210.143.132:3000;
+            img-src 'self' data: https: http://192.210.143.132:3000;
             font-src 'self' data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
-            connect-src 'self';
+            connect-src 'self' http://192.210.143.132:3000;
             frame-src 'none';
             object-src 'none'
           `.replace(/\s+/g, ' ').trim());
@@ -100,12 +100,12 @@ export const setupRoutes = (app) => {
         } else {
           // 文本分享使用原有页面
           res.setHeader('Content-Security-Policy', `
-            default-src 'self';
-            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com;
-            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
-            img-src 'self' data: https:;
+            default-src 'self' http://192.210.143.132:3000;
+            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com http://192.210.143.132:3000;
+            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com http://192.210.143.132:3000;
+            img-src 'self' data: https: http://192.210.143.132:3000;
             font-src 'self' data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
-            connect-src 'self';
+            connect-src 'self' http://192.210.143.132:3000;
             frame-src 'none';
             object-src 'none'
           `.replace(/\s+/g, ' ').trim());

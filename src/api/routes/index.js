@@ -20,6 +20,21 @@ export const setupRoutes = (app) => {
       } else if (path.endsWith('.js')) {
         res.setHeader('Content-Type', 'application/javascript');
       }
+      // 添加安全头
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('X-XSS-Protection', '1; mode=block');
+      // 设置CSP
+      res.setHeader('Content-Security-Policy', `
+        default-src 'self' http: https:;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https:;
+        style-src 'self' 'unsafe-inline' http: https:;
+        img-src 'self' data: http: https:;
+        font-src 'self' data: http: https:;
+        connect-src 'self' http: https:;
+        frame-src 'none';
+        object-src 'none'
+      `.replace(/\s+/g, ' ').trim());
     }
   }));
 
@@ -86,12 +101,12 @@ export const setupRoutes = (app) => {
         if (share && share.type === 'file') {
           // 设置 CSP 头
           res.setHeader('Content-Security-Policy', `
-            default-src 'self' http://192.210.143.132:3000;
-            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com http://192.210.143.132:3000;
-            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com http://192.210.143.132:3000;
-            img-src 'self' data: https: http://192.210.143.132:3000;
+            default-src 'self';
+            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com;
+            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+            img-src 'self' data: https:;
             font-src 'self' data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
-            connect-src 'self' http://192.210.143.132:3000;
+            connect-src 'self';
             frame-src 'none';
             object-src 'none'
           `.replace(/\s+/g, ' ').trim());
@@ -100,12 +115,12 @@ export const setupRoutes = (app) => {
         } else {
           // 文本分享使用原有页面
           res.setHeader('Content-Security-Policy', `
-            default-src 'self' http://192.210.143.132:3000;
-            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com http://192.210.143.132:3000;
-            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com http://192.210.143.132:3000;
-            img-src 'self' data: https: http://192.210.143.132:3000;
+            default-src 'self';
+            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com;
+            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+            img-src 'self' data: https:;
             font-src 'self' data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
-            connect-src 'self' http://192.210.143.132:3000;
+            connect-src 'self';
             frame-src 'none';
             object-src 'none'
           `.replace(/\s+/g, ' ').trim());

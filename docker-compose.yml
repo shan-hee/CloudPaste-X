@@ -23,12 +23,14 @@ services:
       - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - S3_BUCKET=${S3_BUCKET:-cloudpaste}
       - S3_REGION=${S3_REGION:-us-east-1}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+      - S3_AUTO_CREATE_BUCKET=${S3_AUTO_CREATE_BUCKET:-true}
       - JWT_SECRET=${JWT_SECRET}
       - SESSION_SECRET=${SESSION_SECRET}
       - COOKIE_SECRET=${COOKIE_SECRET}
       - MAX_FILE_SIZE=${MAX_FILE_SIZE:-5}
       - TOTAL_STORAGE_GB=${TOTAL_STORAGE_GB:-10}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_LEVEL=${LOG_LEVEL:-debug}
       - PUBLIC_URL=http://${HOST:-0.0.0.0}:${PORT:-3000}
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
@@ -56,6 +58,9 @@ services:
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BROWSER=${MINIO_BROWSER:-on}
+      - MINIO_DOMAIN=${MINIO_DOMAIN:-minio}
+      - MINIO_REGION=${MINIO_REGION:-us-east-1}
     volumes:
       - ./minio-data:/data
     healthcheck:

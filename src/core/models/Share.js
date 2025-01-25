@@ -1,68 +1,59 @@
-export default class Share {
-  constructor({
-    id,
-    type,
-    content,
-    filename,
-    originalname,
-    password,
-    maxViews = 0,
-    views = 0,
-    createdAt = Date.now(),
-    expiresAt = null,
-    fileSize = null,
-    mimeType = null
-  }) {
-    this.id = id;
-    this.type = type;
-    this.content = content;
-    this.filename = filename;
-    this.originalname = originalname;
-    this.password = password;
-    this.maxViews = maxViews;
-    this.views = views;
-    this.createdAt = createdAt;
-    this.expiresAt = expiresAt;
-    this.fileSize = fileSize;
-    this.mimeType = mimeType;
-  }
+import { DataTypes } from 'sequelize';
+import { sequelize } from '../../infrastructure/database/index.js';
 
-  isExpired() {
-    if (!this.expiresAt) return false;
-    return Date.now() > this.expiresAt;
+const Share = sequelize.define('Share', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
+  type: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  content: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  filename: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  originalname: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  mimetype: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  size: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  expiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  maxViews: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  views: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  createdBy: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
+}, {
+  tableName: 'shares',
+  timestamps: true
+});
 
-  hasReachedMaxViews() {
-    if (this.maxViews === 0) return false;
-    return this.views >= this.maxViews;
-  }
-
-  incrementViews() {
-    this.views += 1;
-    return this.views;
-  }
-
-  isPasswordProtected() {
-    return !!this.password;
-  }
-
-  validatePassword(password) {
-    return this.password === password;
-  }
-
-  toJSON() {
-    return {
-      id: this.id,
-      type: this.type,
-      filename: this.filename,
-      originalname: this.originalname,
-      views: this.views,
-      maxViews: this.maxViews,
-      createdAt: this.createdAt,
-      expiresAt: this.expiresAt,
-      hasPassword: this.isPasswordProtected(),
-      fileSize: this.fileSize,
-      mimeType: this.mimeType
-    };
-  }
-} 
+export default Share; 

@@ -4,11 +4,11 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 # 只安装必要的构建依赖
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ sqlite-dev
 
 # 分层复制以利用缓存
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # 复制源代码
 COPY . .
@@ -18,10 +18,10 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# 只安装生产环境必需的包
-RUN apk add --no-cache tini
+# 安装生产环境必需的包
+RUN apk add --no-cache tini sqlite-dev
 
-# 从构建阶段仅复制必要文件
+# 从构建阶段复制文件
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/src ./src

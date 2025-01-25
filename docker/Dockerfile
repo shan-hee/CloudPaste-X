@@ -10,9 +10,8 @@ RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 RUN npm ci --only=production
 
-# 复制源代码并构建
+# 复制源代码
 COPY . .
-RUN npm run build
 
 # 运行阶段
 FROM node:18-alpine
@@ -23,9 +22,11 @@ WORKDIR /app
 RUN apk add --no-cache tini
 
 # 从构建阶段仅复制必要文件
-COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/server.js ./
 
 # 创建必要目录
 RUN mkdir -p /app/data /app/logs && \
@@ -36,4 +37,4 @@ USER node
 EXPOSE 3000
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "dist/server.js"] 
+CMD ["node", "server.js"] 

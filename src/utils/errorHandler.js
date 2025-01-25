@@ -1,6 +1,6 @@
-const { logger } = require('./logger');
+import { logger } from './logger.js';
 
-class AppError extends Error {
+export class AppError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
     this.statusCode = statusCode;
@@ -11,7 +11,7 @@ class AppError extends Error {
   }
 }
 
-const errorHandler = (err, req, res, next) => {
+export const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
@@ -48,9 +48,4 @@ const errorHandler = (err, req, res, next) => {
       });
     }
   }
-};
-
-module.exports = {
-  AppError,
-  errorHandler
 }; 

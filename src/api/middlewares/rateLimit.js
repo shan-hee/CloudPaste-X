@@ -1,5 +1,5 @@
-const rateLimit = require('express-rate-limit');
-const { AppError } = require('../../utils/errorHandler');
+import rateLimit from 'express-rate-limit';
+import { AppError } from '../../utils/errorHandler.js';
 
 const createRateLimit = (options = {}) => {
   return rateLimit({
@@ -55,7 +55,4 @@ const access = rateLimit({
   }
 });
 
-module.exports = {
-  create,
-  access
-}; 
+export default limiter; 

@@ -1,4 +1,4 @@
-class Share {
+export default class Share {
   constructor({
     id,
     type,
@@ -65,6 +65,4 @@ class Share {
       mimeType: this.mimeType
     };
   }
-}
-
-module.exports = Share; 
+} 

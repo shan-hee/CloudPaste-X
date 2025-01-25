@@ -1,7 +1,7 @@
-const { getDb } = require('../../infrastructure/database');
-const Share = require('../models/Share');
-const { AppError } = require('../../utils/errorHandler');
-const { logger } = require('../../utils/logger');
+import { getDb } from '../../infrastructure/database/index.js';
+import Share from '../models/Share.js';
+import { AppError } from '../../utils/errorHandler.js';
+import { logger } from '../../utils/logger.js';
 
 class ShareRepository {
   constructor() {
@@ -300,4 +300,4 @@ class ShareRepository {
   }
 }
 
-module.exports = new ShareRepository(); 
+export default new ShareRepository(); 

@@ -1,11 +1,11 @@
-const express = require('express');
-const multer = require('multer');
-const shareService = require('../../core/services/ShareService');
-const { validateTextShare, validateFileShare, validateShareAccess } = require('../middlewares/validator');
-const limiter = require('../middlewares/rateLimit');
-const { AppError } = require('../../utils/errorHandler');
-const { logger } = require('../../utils/logger');
-const { authMiddleware } = require('../middlewares/auth');
+import express from 'express';
+import multer from 'multer';
+import shareService from '../../core/services/ShareService.js';
+import { validateTextShare, validateFileShare, validateShareAccess } from '../middlewares/validator.js';
+import limiter from '../middlewares/rateLimit.js';
+import { AppError } from '../../utils/errorHandler.js';
+import { logger } from '../../utils/logger.js';
+import { authMiddleware } from '../middlewares/auth.js';
 
 const router = express.Router();
 
@@ -168,4 +168,4 @@ router.get('/', authMiddleware, async (req, res, next) => {
   }
 });
 
-module.exports = router; 
+export default router; 

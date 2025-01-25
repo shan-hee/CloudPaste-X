@@ -1,9 +1,14 @@
-const sqlite3 = require('sqlite3');
-const { open } = require('sqlite');
-const path = require('path');
-const fs = require('fs');
-const { logger } = require('../../utils/logger');
-const bcrypt = require('bcrypt');
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
+import path from 'path';
+import fs from 'fs';
+import { logger } from '../../utils/logger.js';
+import bcrypt from 'bcrypt';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 let db = null;
 
@@ -159,7 +164,4 @@ const getDb = () => {
   return db;
 };
 
-module.exports = {
-  setupDatabase,
-  getDb
-}; 
+export { getDb, setupDatabase }; 

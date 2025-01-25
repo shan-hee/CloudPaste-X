@@ -1,5 +1,5 @@
-const { getDb } = require('../../infrastructure/database');
-const { logger } = require('../../utils/logger');
+import { getDb } from '../../infrastructure/database/index.js';
+import { logger } from '../../utils/logger.js';
 
 class SettingsRepository {
   async getSettings() {
@@ -34,4 +34,4 @@ class SettingsRepository {
   }
 }
 
-module.exports = SettingsRepository; 
+export default new SettingsRepository(); 

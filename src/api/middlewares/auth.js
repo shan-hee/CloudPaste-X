@@ -1,8 +1,8 @@
-const { AppError } = require('../../utils/errorHandler');
-const { logger } = require('../../utils/logger');
-const userRepository = require('../../core/repositories/UserRepository');
+import { AppError } from '../../utils/errorHandler.js';
+import { logger } from '../../utils/logger.js';
+import userRepository from '../../core/repositories/UserRepository.js';
 
-const authMiddleware = async (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
   try {
     // 从请求头或 cookie 中获取 sessionId
     const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
@@ -35,14 +35,9 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // 管理员权限检查中间件
-const adminMiddleware = (req, res, next) => {
+export const adminMiddleware = (req, res, next) => {
   if (!req.user?.isAdmin) {
     return next(new AppError('需要管理员权限', 403));
   }
   next();
-};
-
-module.exports = {
-  authMiddleware,
-  adminMiddleware
 }; 

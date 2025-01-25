@@ -1,7 +1,7 @@
-const { getDb } = require('../../infrastructure/database');
-const { logger } = require('../../utils/logger');
-const bcrypt = require('bcrypt');
-const { v4: uuidv4 } = require('uuid');
+import { getDb } from '../../infrastructure/database/index.js';
+import { logger } from '../../utils/logger.js';
+import bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
 
 class UserRepository {
   async findByUsername(username) {
@@ -94,4 +94,4 @@ class UserRepository {
   }
 }
 
-module.exports = new UserRepository(); 
+export default new UserRepository(); 

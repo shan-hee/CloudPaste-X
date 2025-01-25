@@ -1,5 +1,5 @@
-const AWS = require('aws-sdk');
-const { logger } = require('../../utils/logger');
+import AWS from 'aws-sdk';
+import { logger } from '../../utils/logger.js';
 
 let s3Client;
 let isStorageAvailable = false;
@@ -145,10 +145,11 @@ const getSignedDownloadUrl = async (key, filename, expiresIn = 3600) => {
   }
 };
 
-module.exports = {
+export {
   setupStorage,
   uploadFile,
   downloadFile,
   deleteFile,
-  getSignedDownloadUrl
+  getSignedDownloadUrl,
+  getStorageStats
 }; 

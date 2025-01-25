@@ -1,10 +1,11 @@
-const express = require('express');
+import express from 'express';
+import multer from 'multer';
+import shareService from '../../core/services/ShareService.js';
+import { AppError } from '../../utils/errorHandler.js';
+import { logger } from '../../utils/logger.js';
+import { authMiddleware } from '../middlewares/auth.js';
+
 const router = express.Router();
-const multer = require('multer');
-const shareService = require('../../core/services/ShareService');
-const { AppError } = require('../../utils/errorHandler');
-const { logger } = require('../../utils/logger');
-const { authMiddleware } = require('../middlewares/auth');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -27,4 +28,4 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-module.exports = router; 
+export default router; 

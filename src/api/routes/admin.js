@@ -1,8 +1,9 @@
-const express = require('express');
-const { authMiddleware, adminMiddleware } = require('../middlewares/auth');
-const userRepository = require('../../core/repositories/UserRepository');
-const shareRepository = require('../../core/repositories/ShareRepository');
-const bcrypt = require('bcrypt');
+import express from 'express';
+import { authMiddleware, adminMiddleware } from '../middlewares/auth.js';
+import userRepository from '../../core/repositories/UserRepository.js';
+import shareRepository from '../../core/repositories/ShareRepository.js';
+import bcrypt from 'bcrypt';
+
 const router = express.Router();
 
 // 管理员登录
@@ -149,4 +150,4 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router; 

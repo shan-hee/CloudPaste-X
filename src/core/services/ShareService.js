@@ -1,8 +1,8 @@
-const { v4: uuidv4 } = require('uuid');
-const shareRepository = require('../repositories/ShareRepository');
-const { AppError } = require('../../utils/errorHandler');
-const { logger } = require('../../utils/logger');
-const { uploadFile, downloadFile, deleteFile, getSignedDownloadUrl } = require('../../infrastructure/storage');
+import { v4 as uuidv4 } from 'uuid';
+import shareRepository from '../repositories/ShareRepository.js';
+import { AppError } from '../../utils/errorHandler.js';
+import { logger } from '../../utils/logger.js';
+import { uploadFile, downloadFile, deleteFile, getSignedDownloadUrl } from '../../infrastructure/storage/index.js';
 
 class ShareService {
   async createTextShare(data) {
@@ -382,4 +382,4 @@ class ShareService {
   }
 }
 
-module.exports = new ShareService(); 
+export default new ShareService(); 

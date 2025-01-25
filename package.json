@@ -2,6 +2,7 @@
   "name": "cloudpaste-x",
   "version": "1.0.0",
   "description": "CloudPaste-X file sharing application",
+  "type": "module",
   "main": "src/index.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon server.js",

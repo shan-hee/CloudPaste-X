@@ -1,13 +1,13 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
-const { setupRoutes } = require('./api/routes');
-const { setupDatabase } = require('./infrastructure/database');
-const { setupStorage } = require('./infrastructure/storage');
-const { errorHandler } = require('./utils/errorHandler');
-const { logger } = require('./utils/logger');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import { setupRoutes } from './api/routes/index.js';
+import { setupDatabase } from './infrastructure/database/index.js';
+import { setupStorage } from './infrastructure/storage/index.js';
+import { errorHandler } from './utils/errorHandler.js';
+import { logger } from './utils/logger.js';
 
 const app = express();
 
@@ -95,4 +95,4 @@ const initializeApp = async () => {
 // 初始化应用
 initializeApp();
 
-module.exports = app; 
+export default app; 

@@ -1,14 +1,14 @@
-const express = require('express');
-const fetch = require('node-fetch');
-const shareRoutes = require('./share');
-const adminRoutes = require('./admin');
-const fileRoutes = require('./file');
-const authRoutes = require('./auth');
-const { authMiddleware } = require('../middlewares/auth');
-const { AppError } = require('../../utils/errorHandler');
-const shareService = require('../../core/services/ShareService');
+import express from 'express';
+import fetch from 'node-fetch';
+import * as shareRoutes from './share.js';
+import * as adminRoutes from './admin.js';
+import * as fileRoutes from './file.js';
+import * as authRoutes from './auth.js';
+import { authMiddleware } from '../middlewares/auth.js';
+import { AppError } from '../../utils/errorHandler.js';
+import shareService from '../../core/services/ShareService.js';
 
-const setupRoutes = (app) => {
+export const setupRoutes = (app) => {
   const apiRouter = express.Router();
 
   // 静态文件服务 - 需要在最前面
@@ -137,8 +137,4 @@ const setupRoutes = (app) => {
   app.get('*', (req, res) => {
     res.sendFile('index.html', { root: 'public' });
   });
-};
-
-module.exports = {
-  setupRoutes
 }; 

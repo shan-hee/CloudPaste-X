@@ -1,7 +1,12 @@
-const winston = require('winston');
-const path = require('path');
+import winston from 'winston';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-const logger = winston.createLogger({
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
@@ -24,8 +29,4 @@ const logger = winston.createLogger({
       filename: path.join(process.cwd(), 'logs', 'combined.log')
     })
   ]
-});
-
-module.exports = {
-  logger
-}; 
+}); 

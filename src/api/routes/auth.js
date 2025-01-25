@@ -1,9 +1,10 @@
-const express = require('express');
+import express from 'express';
+import bcrypt from 'bcrypt';
+import { AppError } from '../../utils/errorHandler.js';
+import { logger } from '../../utils/logger.js';
+import userRepository from '../../core/repositories/UserRepository.js';
+
 const router = express.Router();
-const bcrypt = require('bcrypt');
-const { AppError } = require('../../utils/errorHandler');
-const { logger } = require('../../utils/logger');
-const userRepository = require('../../core/repositories/UserRepository');
 
 // 用户登录
 router.post('/login', async (req, res, next) => {
@@ -95,4 +96,4 @@ router.get('/me', async (req, res, next) => {
   }
 });
 
-module.exports = router; 
+export default router; 

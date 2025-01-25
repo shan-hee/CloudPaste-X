@@ -1,15 +1,15 @@
 import express from 'express';
 import fetch from 'node-fetch';
-import * as shareRoutes from './share.js';
-import * as adminRoutes from './admin.js';
-import * as fileRoutes from './file.js';
-import * as authRoutes from './auth.js';
+import shareRoutes from './share.js';
+import adminRoutes from './admin.js';
+import fileRoutes from './file.js';
+import authRoutes from './auth.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { AppError } from '../../utils/errorHandler.js';
 import shareService from '../../core/services/ShareService.js';
 
 export const setupRoutes = (app) => {
-  const apiRouter = express.Router();
+  const router = express.Router();
 
   // 静态文件服务 - 需要在最前面
   app.use('/', express.static('public', {
@@ -23,16 +23,8 @@ export const setupRoutes = (app) => {
     }
   }));
 
-  // 公开路由
-  apiRouter.use('/auth', authRoutes);
-  apiRouter.use('/share', shareRoutes);
-  apiRouter.use('/admin', adminRoutes);
-
-  // 需要认证的路由
-  apiRouter.use('/file', fileRoutes);
-
   // 健康检查
-  apiRouter.get('/health', (req, res) => {
+  router.get('/health', (req, res) => {
     res.json({
       success: true,
       message: 'Service is healthy',
@@ -40,13 +32,19 @@ export const setupRoutes = (app) => {
     });
   });
 
+  // 公开路由
+  router.use('/auth', authRoutes);
+  router.use('/share', shareRoutes);
+  router.use('/admin', adminRoutes);
+  router.use('/file', fileRoutes);
+
   // 404 处理
-  apiRouter.use((req, res, next) => {
+  router.use((req, res, next) => {
     next(new AppError(`找不到路径: ${req.originalUrl}`, 404));
   });
 
   // 注册 API 路由
-  app.use('/api', apiRouter);
+  app.use('/api', router);
 
   // 处理分享链接
   app.get('/s/:id', async (req, res) => {

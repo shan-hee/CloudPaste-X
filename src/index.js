@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { setupRoutes } from './api/routes/index.js';
 import { setupDatabase } from './infrastructure/database/index.js';
 import { setupStorage } from './infrastructure/storage/index.js';
@@ -50,6 +51,7 @@ app.use(cors());
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser(process.env.COOKIE_SECRET));
 
 // 将环境变量传递给前端
 app.use((req, res, next) => {

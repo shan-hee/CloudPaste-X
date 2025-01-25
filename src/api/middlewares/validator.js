@@ -1,6 +1,6 @@
 import { AppError } from '../../utils/errorHandler.js';
 
-export const validateTextShare = (req, res, next) => {
+const validateTextShare = (req, res, next) => {
   const { content, filename, password, duration, maxViews } = req.body;
 
   if (!content) {
@@ -22,7 +22,7 @@ export const validateTextShare = (req, res, next) => {
   next();
 };
 
-export const validateFileShare = (req, res, next) => {
+const validateFileShare = (req, res, next) => {
   const { filename, password, duration, maxViews } = req.body;
   const file = req.file;
 
@@ -60,7 +60,13 @@ export const validateFileShare = (req, res, next) => {
   next();
 };
 
-export const validateShareAccess = (req, res, next) => {
+const validateShareAccess = (req, res, next) => {
   // 这里可以添加访问验证逻辑
   next();
+};
+
+export default {
+  validateTextShare,
+  validateFileShare,
+  validateShareAccess
 }; 

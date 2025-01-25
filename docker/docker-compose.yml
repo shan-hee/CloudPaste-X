@@ -1,6 +1,13 @@
 version: '3.8'
 
 services:
+  init-volume:
+    image: busybox
+    command: chown -R 1000:1000 /app/data /app/logs
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+
   app:
     build:
       context: ..
@@ -28,6 +35,8 @@ services:
       - ../data:/app/data
       - ../logs:/app/logs
     depends_on:
+      init-volume:
+        condition: service_completed_successfully
       minio:
         condition: service_healthy
     deploy:
@@ -39,39 +48,30 @@ services:
           cpus: '0.25'
           memory: 512M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 10s
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio
     container_name: cloudpaste-minio
-    restart: unless-stopped
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    command: server /data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     volumes:
-      - ../data/minio:/data
-    command: server /data --console-address ":9001"
+      - ../minio-data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
-      timeout: 20s
+      timeout: 10s
       retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 1G
-        reservations:
-          cpus: '0.1'
-          memory: 256M
+      start_period: 10s
 
   prometheus:
     image: prom/prometheus:latest

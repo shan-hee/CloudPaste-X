@@ -1,6 +1,6 @@
-const { AppError } = require('../../utils/errorHandler');
+import { AppError } from '../../utils/errorHandler.js';
 
-const validateTextShare = (req, res, next) => {
+export const validateTextShare = (req, res, next) => {
   const { content, filename, password, duration, maxViews } = req.body;
 
   if (!content) {
@@ -22,7 +22,7 @@ const validateTextShare = (req, res, next) => {
   next();
 };
 
-const validateFileShare = (req, res, next) => {
+export const validateFileShare = (req, res, next) => {
   const { filename, password, duration, maxViews } = req.body;
   const file = req.file;
 
@@ -60,13 +60,7 @@ const validateFileShare = (req, res, next) => {
   next();
 };
 
-const validateShareAccess = (req, res, next) => {
+export const validateShareAccess = (req, res, next) => {
   // 这里可以添加访问验证逻辑
   next();
-};
-
-module.exports = {
-  validateTextShare,
-  validateFileShare,
-  validateShareAccess
 }; 

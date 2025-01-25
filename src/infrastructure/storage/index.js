@@ -150,6 +150,5 @@ export {
   uploadFile,
   downloadFile,
   deleteFile,
-  getSignedDownloadUrl,
-  getStorageStats
+  getSignedDownloadUrl
 }; 

@@ -34,9 +34,24 @@ yarn-error.log*
 !/temp/.gitkeep
 /public/uploads/*
 !/public/uploads/.gitkeep
+/minio-data/*
+!/minio-data/.gitkeep
+/s3/*
+!/s3/.gitkeep
+/sessions/*
+!/sessions/.gitkeep
+
+# 数据库文件
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
 
 # IDE和编辑器
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo
@@ -84,12 +99,6 @@ temp/
 .cache/
 .temp/
 
-# 数据库文件
-*.sqlite
-*.sqlite3
-*.db
-*.db-journal
-
 # 密钥和证书
 *.pem
 *.key
@@ -123,32 +132,4 @@ jspm_packages/
 web_modules/
 
 # CloudPaste特定
-/s3/*
-!/s3/.gitkeep
 .cloudpaste-config.json
-/sessions/*
-!/sessions/.gitkeep
-
-# 环境变量
-.env
-
-# 数据目录
-/data/
-/logs/
-/minio-data/
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# 系统文件
-.DS_Store
-Thumbs.db

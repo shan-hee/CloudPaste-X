@@ -1,5 +1,5 @@
 import { Sequelize } from 'sequelize';
-import logger from '../../utils/logger.js';
+import { logger } from '../../utils/logger.js';
 
 const sequelize = new Sequelize({
   dialect: 'sqlite',
@@ -7,7 +7,13 @@ const sequelize = new Sequelize({
   logging: false
 });
 
-async function initDatabase() {
+// 提供getDb函数以兼容现有代码
+function getDb() {
+  return sequelize;
+}
+
+// 初始化数据库
+const setupDatabase = async () => {
   try {
     // 测试连接
     await sequelize.authenticate();
@@ -40,4 +46,4 @@ async function initDatabase() {
   }
 }
 
-export { sequelize, initDatabase }; 
+export { sequelize, setupDatabase, getDb }; 

@@ -7,9 +7,7 @@ services:
       - ./logs:/app/logs
 
   app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    image: ghcr.io/shan-hee/cloudpaste-x:latest  # 请替换为您的GitHub用户名
     container_name: cloudpaste-app
     restart: unless-stopped
     ports:

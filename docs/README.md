@@ -1,38 +1,44 @@
 # CloudPaste-X 文档中心
 
-这里是 CloudPaste-X 的详细文档。
-
-## 🚀 特性
-
-- 支持独立部署，可在自有服务器上运行
-- 使用 SQLite 数据库，便于维护
-- 支持多种对象存储服务（S3、MinIO 等）
-- Docker 容器化部署
-- 模块化架构设计
-- 完整的错误处理和日志记录
-- 支持所有原有功能（Markdown、主题切换等）
-- 分页列表和统计功能
-- 文件自动清理机制
-- 完整的监控和日志系统
-- 安全性增强（速率限制、会话管理等）
-
-## 🛠️ 技术栈
-
-- 后端：Node.js + Express.js
-- 数据库：SQLite3
-- 对象存储：S3 兼容接口（AWS S3/MinIO）
-- 容器化：Docker + Docker Compose
-- 监控：Prometheus + Express Actuator
-- 日志：Winston
+欢迎使用 CloudPaste-X 文档中心。本文档提供了全面的使用指南、部署说明和开发参考。
 
 ## 📚 文档导航
 
-- [用户指南](guides/README.md) - 详细的使用说明和功能介绍
-- [部署指南](guides/deployment.md) - 部署和配置说明
-- [API文档](api/README.md) - API接口说明
-- [开发指南](development/README.md) - 开发者指南和贡献说明
+### 💡 快速入门
+- [功能概览](guides/features.md) - 核心功能一览
+- [快速部署](guides/quickstart.md) - 5分钟内完成部署
+- [常见问题](guides/faq.md) - 常见问题解答
 
-## 🏗️ 项目结构
+### 📖 用户指南
+- [使用手册](guides/README.md) - 详细的功能使用说明
+- [管理员指南](guides/admin.md) - 管理员功能与最佳实践
+
+### 🔧 部署与运维
+- [部署指南](guides/deployment.md) - 多种部署方式详解
+- [Docker部署](guides/docker-deployment.md) - Docker容器化部署
+- [GHCR部署](guides/ghcr-deployment.md) - 使用GitHub Actions与GHCR部署
+- [配置参考](guides/configuration.md) - 环境变量与配置项说明
+- [监控与日志](guides/monitoring.md) - 系统监控与日志管理
+- [性能优化](guides/performance.md) - 系统性能调优指南
+- [升级指南](guides/upgrade.md) - 版本升级步骤
+
+### 🔌 API参考
+- [API概述](api/README.md) - API使用总览
+- [认证与授权](api/auth.md) - API认证机制
+- [分享管理](api/sharing.md) - 分享相关API
+- [用户管理](api/users.md) - 用户相关API
+- [系统管理](api/system.md) - 系统相关API
+
+### 💻 开发者指南
+- [开发环境](development/README.md) - 开发环境搭建
+- [代码规范](development/coding-standards.md) - 代码风格与规范
+- [架构设计](development/architecture.md) - 系统架构说明
+- [测试指南](development/testing.md) - 单元测试与集成测试
+- [贡献指南](development/contributing.md) - 如何参与项目贡献
+
+## 🏗️ 项目架构
+
+CloudPaste-X采用模块化架构设计，各组件职责明确，便于维护与扩展：
 
 ```
 CloudPaste-X/
@@ -43,50 +49,38 @@ CloudPaste-X/
 │   └── utils/         # 工具类
 ├── public/            # 静态资源
 ├── tests/             # 测试文件
-└── docs/             # 项目文档
+└── docs/              # 项目文档
 ```
 
-## 🔧 主要功能
+## 🛠️ 技术栈
 
-### 分享功能
-- 文本分享：支持 Markdown 格式
-- 文件分享：支持多种文件类型
-- 密码保护：可设置访问密码
-- 过期时间：支持自定义过期时间
-- 访问限制：可限制最大访问次数
+CloudPaste-X基于现代化技术栈构建：
 
-### 管理功能
-- 分享管理：查看、删除分享
-- 统计信息：使用量统计
-- 系统设置：存储配置等
+- **后端**: Node.js + Express.js
+- **数据库**: SQLite3
+- **存储**: S3兼容接口 (AWS S3/MinIO)
+- **容器化**: Docker + Docker Compose
+- **监控**: Prometheus + Express Actuator
+- **日志**: Winston
 
-### 安全特性
-- 速率限制：防止恶意请求
-- 会话管理：安全的用户会话
-- 文件验证：类型和大小限制
-- CORS 配置：可配置跨域访问
-- 安全响应头：使用 Helmet 增强安全性
+## 🔐 安全特性
 
-### 监控和日志
-- 健康检查：系统状态监控
-- 性能指标：Prometheus 指标收集
-- 日志记录：分级日志系统
-- 审计日志：关键操作记录
+- **访问控制**: 基于角色的权限系统
+- **数据保护**: 内容加密与访问限制
+- **API安全**: JWT认证与速率限制
+- **输入验证**: 严格的请求验证机制
+- **安全响应**: 默认安全响应头
+- **审计日志**: 关键操作完整日志记录
 
-## 🤝 贡献指南
+## 📋 版本历史
 
-欢迎提交 Issue 和 Pull Request。在提交 PR 之前，请确保：
+查看我们的[版本发布历史](guides/changelog.md)了解每个版本的新功能、改进和修复。
 
-1. 代码符合项目规范
-2. 添加必要的测试
-3. 更新相关文档
-4. 遵循 Git Commit 规范
+## 📱 社区支持
+
+- [GitHub Issues](https://github.com/shan-hee/CloudPaste-X/issues) - 报告问题或提出建议
+- [GitHub Discussions](https://github.com/shan-hee/CloudPaste-X/discussions) - 参与讨论
 
 ## 📄 许可证
 
-本项目采用 [MIT](../LICENSE) 许可证。
-
-## 🙏 致谢
-
-感谢所有为这个项目做出贡献的开发者。
-感谢原作者 [ling-drag0n](https://github.com/ling-drag0n) 的贡献。 
+本项目采用 [MIT](../LICENSE) 许可证。 

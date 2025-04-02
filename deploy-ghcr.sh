@@ -12,14 +12,14 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # 配置变量
-GITHUB_USERNAME=${1:-"your-username"} # 默认值需要修改为您的GitHub用户名
+GITHUB_USERNAME=${1:-"shan-hee"} # 默认CloudPaste-X仓库所有者
 TAG=${2:-"latest"}
 ENV_FILE=".env"
 COMPOSE_FILE="docker-compose.yml"
 
 # 标题
 echo -e "${GREEN}=======================================${NC}"
-echo -e "${GREEN}  CloudPaste-X GHCR部署工具  ${NC}"
+echo -e "${GREEN}  CloudPaste-X 一键部署工具  ${NC}"
 echo -e "${GREEN}=======================================${NC}"
 echo ""
 
@@ -132,16 +132,16 @@ echo -e "${GREEN}已创建Docker Compose配置文件${NC}"
 echo -e "${YELLOW}创建必要的目录...${NC}"
 mkdir -p data logs minio-data
 
-# 拉取并启动服务
-echo -e "${YELLOW}正在拉取镜像并部署服务...${NC}"
-echo -e "使用镜像: ${GREEN}ghcr.io/${GITHUB_USERNAME}/cloudpaste-x:${TAG}${NC}"
-
-# 判断使用哪个docker compose命令
+# 确定Docker Compose命令
 if command -v docker-compose &> /dev/null; then
     COMPOSE_CMD="docker-compose"
 else
     COMPOSE_CMD="docker compose"
 fi
+
+# 拉取并启动服务
+echo -e "${YELLOW}正在拉取镜像并部署服务...${NC}"
+echo -e "使用镜像: ${GREEN}ghcr.io/${GITHUB_USERNAME}/cloudpaste-x:${TAG}${NC}"
 
 $COMPOSE_CMD up -d
 
@@ -149,15 +149,18 @@ $COMPOSE_CMD up -d
 echo -e "${YELLOW}检查服务状态...${NC}"
 sleep 5
 if $COMPOSE_CMD ps | grep -q "cloudpaste-app"; then
-    echo -e "${GREEN}CloudPaste-X 服务已成功部署!${NC}"
+    echo -e "${GREEN}✅ CloudPaste-X 服务已成功部署!${NC}"
     echo -e "${GREEN}访问地址: http://localhost:${PORT:-3000}${NC}"
+    echo -e "${GREEN}MinIO控制台: http://localhost:9001${NC}"
 else
-    echo -e "${RED}服务部署可能存在问题，请检查日志:${NC}"
+    echo -e "${RED}⚠️ 服务部署可能存在问题，请检查日志:${NC}"
     $COMPOSE_CMD logs
 fi
 
 echo ""
 echo -e "${GREEN}=======================================${NC}"
-echo -e "${YELLOW}如有问题，请使用以下命令查看日志:${NC}"
+echo -e "${YELLOW}如需查看日志，请使用:${NC}"
 echo -e "  $COMPOSE_CMD logs -f app"
+echo -e "${YELLOW}如需备份数据，请使用:${NC}"
+echo -e "  tar -czvf cloudpaste-backup.tar.gz data/ logs/ minio-data/"
 echo -e "${GREEN}=======================================${NC}" 
